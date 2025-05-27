@@ -112,15 +112,18 @@
                         <template #prefix-icon>
                           <t-icon name="secured" />
                         </template>
-                      </t-input>
-                      <t-button
-                        :disabled="codeCountdown > 0"
+                      </t-input>                      <t-button
+                        :disabled="codeCountdown > 0 || sendingCode"
                         :loading="sendingCode"
                         size="large"
                         variant="outline"
                         @click="sendVerificationCode('code-login')"
                       >
-                        {{ codeCountdown > 0 ? `${codeCountdown}s` : '获取验证码' }}
+                        {{ 
+                          sendingCode ? '发送中...' : 
+                          codeCountdown > 0 ? `${codeCountdown}s` : 
+                          '获取验证码' 
+                        }}
                       </t-button>
                     </div>
                   </t-form-item>
@@ -202,7 +205,6 @@
                       placeholder="请输入您的邮箱地址"
                       size="large"
                       clearable
-                      @blur="checkEmailExists"
                     >
                       <template #prefix-icon>
                         <t-icon name="mail" />
@@ -221,26 +223,28 @@
                         <template #prefix-icon>
                           <t-icon name="secured" />
                         </template>
-                      </t-input>
-                      <t-button
-                        :disabled="codeCountdown > 0"
+                      </t-input>                      <t-button
+                        :disabled="codeCountdown > 0 || sendingCode"
                         :loading="sendingCode"
                         size="large"
                         variant="outline"
                         @click="sendVerificationCode('register')"
                       >
-                        {{ codeCountdown > 0 ? `${codeCountdown}s` : '获取验证码' }}
+                        {{ 
+                          sendingCode ? '发送中...' : 
+                          codeCountdown > 0 ? `${codeCountdown}s` : 
+                          '获取验证码' 
+                        }}
                       </t-button>
                     </div>
-                  </t-form-item>
-  
-                  <t-form-item label="密码" name="password">
+                  </t-form-item>                  <t-form-item label="密码" name="password">
                     <t-input
                       v-model="registerData.password"
                       type="password"
                       placeholder="请输入密码（至少8位，包含字母和数字）"
                       size="large"
                       clearable
+                      @blur="validatePasswordField"
                     >
                       <template #prefix-icon>
                         <t-icon name="lock-on" />
@@ -255,6 +259,8 @@
                       placeholder="请再次输入密码"
                       size="large"
                       clearable
+                      @blur="validateConfirmPasswordField"
+                    >
                     >
                       <template #prefix-icon>
                         <t-icon name="lock-on" />
@@ -273,9 +279,12 @@
                     注册
                   </t-button>
                 </t-form>
-              </t-tab-panel>
+              </t-tab-panel>            
             </t-tabs>
-          </div>
+            <div v-if="activeTab === 'code-login'" class="auto-register-tip">
+              如果您没有账号，发送验证码我们将会为您自动注册
+            </div>
+         </div>
         </div>
       </div>
     </div>
@@ -284,11 +293,10 @@
   <script setup lang="ts">
   import { ref, reactive } from 'vue'
   import { useRouter } from 'vue-router'
-  import { MessagePlugin } from 'tdesign-vue-next'
+  import { Message, MessagePlugin } from 'tdesign-vue-next'
   
   const router = useRouter()
-  
-  // 响应式数据
+    // 响应式数据
   const activeTab = ref('code-login')
   const sendingCode = ref(false)
   const loggingIn = ref(false)
@@ -382,11 +390,13 @@
         validator: (val: string) => validatePassword(val),
         message: '密码至少8位且包含字母和数字'
       }
-    ],
-    confirmPassword: [
+    ],    confirmPassword: [
       { required: true, message: '请确认密码' },
       {
-        validator: (val: string) => val === registerData.password,
+        validator: (val: string) => {
+          if (!val) return false
+          return val === registerData.password
+        },
         message: '两次输入的密码不一致'
       }
     ]
@@ -397,6 +407,16 @@
   const passwordLoginForm = ref()
   const registerForm = ref()
   
+  // 密码字段验证函数
+  const validatePasswordField = () => {
+    registerForm.value?.validateField(['password'])
+  }
+  
+  // 确认密码字段验证函数
+  const validateConfirmPasswordField = () => {
+    registerForm.value?.validateField(['confirmPassword'])
+  }
+  
   // 发送验证码
   const sendVerificationCode = async (type: string) => {
     const email = type === 'code-login' ? codeLoginData.email : registerData.email
@@ -405,8 +425,34 @@
       MessagePlugin.warning('请输入有效的邮箱地址')
       return
     }
-  
     sendingCode.value = true
+    
+    // 如果邮箱已注册，禁止发送验证码
+    if (type === 'register') {
+      
+      try {
+        const response = await fetch("http://localhost:8080/user/check-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          if (result.exists) {
+
+            MessagePlugin.error("此邮箱已注册，无法再次注册。请使用其他邮箱或前往登录。")
+            sendingCode.value = false
+            return
+          }
+        }
+      } catch (error) {
+        console.error("邮箱检查失败:", error)
+        MessagePlugin.error("邮箱检查失败，请稍后再试")
+        sendingCode.value = false
+        return
+      }
+    }
     
     try {
       console.log("发送验证码请求:", email)
@@ -424,8 +470,7 @@
         const errorText = await response.text()
         console.error("发送验证码失败:", errorText)
         throw new Error("发送验证码失败: " + errorText)
-      }
-      
+      }      
       MessagePlugin.success("验证码已发送，请检查您的邮箱")
       startCountdown()
     } catch (error) {
@@ -435,8 +480,7 @@
       sendingCode.value = false
     }
   }
-  
-  // 倒计时
+    // 倒计时
   const startCountdown = () => {
     codeCountdown.value = 60
     const interval = setInterval(() => {
@@ -446,7 +490,7 @@
       }
     }, 1000)
   }
-  
+
   // 验证码登录
   const loginWithCode = async () => {
     const valid = await codeLoginForm.value?.validate()
@@ -486,10 +530,8 @@
           const userErrorText = await userResponse.text()
           throw new Error(`用户检查失败: ${userErrorText}`)
         }
-        
-        const userResult = await userResponse.json()
+          const userResult = await userResponse.json()
         if (userResult.exists) {
-          localStorage.setItem("userEmail", email)
           MessagePlugin.success("登录成功")
           router.push('/index')
         } else {
@@ -498,14 +540,14 @@
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ email, password: null, avatar, bio }),
+            body: JSON.stringify({ email, password: " ", avatar, bio}),
           })
           
           if (!registerResponse.ok) {
             const registerErrorText = await registerResponse.text()
             throw new Error(`自动注册失败: ${registerErrorText}`)
           }
-          
+          // 没有注册过系统会自动注册
           localStorage.setItem("userEmail", email)
           MessagePlugin.success("自动注册成功，正在登录中...")
           router.push('/index')
@@ -558,19 +600,57 @@
       loggingIn.value = false
     }
   }
-  
+
   // 注册
   const register = async () => {
-    const valid = await registerForm.value?.validate()
-    if (!valid) return
-  
+    try {
+      const valid = await registerForm.value?.validate()
+      if (!valid) {
+        MessagePlugin.warning('请检查表单填写是否正确')
+        return
+      }
+    } catch (error) {
+      console.error('表单验证失败:', error)
+      MessagePlugin.error('表单验证失败，请检查输入')
+      return
+    }
+    
     const { email, code, password } = registerData
+    
+    // 前端额外验证密码规则
+    if (!validatePassword(password)) {
+      MessagePlugin.error('密码至少8位且包含字母和数字')
+      return
+    }
+    
+    // 前端验证密码确认
+    if (password !== registerData.confirmPassword) {
+      MessagePlugin.error('两次输入的密码不一致')
+      return
+    }
+    
     const avatar = "/img/avatar01.png"
     const bio = "这个人很懒，还没有填写他的个人简介"
-  
+
     registering.value = true
-  
+
     try {
+      // 最终的邮箱注册状态检查
+      const checkResponse = await fetch("http://localhost:8080/user/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      
+      if (checkResponse.ok) {
+        const checkResult = await checkResponse.json()
+        if (checkResult.exists) {
+          MessagePlugin.warning("您已经注册过账号，请前去登录")
+          registering.value = false
+          return
+        }
+      }
+      
       // 先校验验证码
       const codeRes = await fetch("http://localhost:8080/code/verify-code", {
         method: "POST",
@@ -587,7 +667,7 @@
         MessagePlugin.error("验证码错误或已过期")
         throw new Error("验证码错误或已过期")
       }
-  
+
       // 验证码通过后再注册
       const response = await fetch("http://localhost:8080/user/register", {
         method: "POST",
@@ -622,29 +702,10 @@
       registering.value = false
     }
   }
-  
-  // 检查邮箱是否存在
-  const checkEmailExists = async () => {
-    const email = registerData.email.trim()
-      if (!email)
-          return
-    try {
-      const response = await fetch("http://localhost:8080/user/check-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-      
-      if (!response.ok) throw new Error("网络请求失败")
-      
-      const result = await response.json()
-      if (result.exists) {
-        MessagePlugin.warning("此邮箱已注册，请使用其它邮箱或直接登录。")
-      }
-    } catch (error) {
-      console.error("邮箱校验失败:", error)
-    }
-  }  // 背景动画形状样式生成函数 - 这是动画实现的核心函数
+
+
+
+  // 背景动画形状样式生成函数 - 这是动画实现的核心函数
   const getShapeStyle = (index: number) => {
     // 定义8种不同的颜色，用于创造丰富的视觉效果
     // 包含蓝色系、绿色系、红色系、橙色系、紫色系，营造渐变和谐的色彩搭配
@@ -681,7 +742,12 @@
   }
   </script>
   
-  <style scoped>  /* 登录容器 - 整个页面的根容器 */
+
+
+
+
+
+<style scoped>  /* 登录容器 - 整个页面的根容器 */
   .login-container {
     position: relative; /* 相对定位，为内部绝对定位元素提供参考点 */
     width: 100vw; /* 视口宽度100% */
@@ -930,10 +996,18 @@
   .login-form :deep(.t-form-item) {
     margin-bottom: 24px;
   }
-  
-  .login-form :deep(.t-form__label) {
+    .login-form :deep(.t-form__label) {
     font-weight: 600;
     color: #333;
     margin-bottom: 8px;
+  }
+  
+  /* 自动注册提示信息样式 */
+  .auto-register-tip {
+    margin-top: 20px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+    line-height: 1.4;
   }
   </style>
