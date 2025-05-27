@@ -419,6 +419,7 @@
   
   // 发送验证码
   const sendVerificationCode = async (type: string) => {
+
     const email = type === 'code-login' ? codeLoginData.email : registerData.email
     
     if (!validateEmail(email)) {
