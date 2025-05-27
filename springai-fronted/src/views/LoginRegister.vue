@@ -1,9 +1,46 @@
+/*
+  * @Description: 登录🎨 背景动画实现详解
+  1. 整体架构
+  动画系统采用了三层结构：
+  
+  外层容器 (.login-container): 提供渐变背景和定位参考
+  动画容器 (.background-animation): 承载所有动画元素，使用绝对定位
+  形状容器 (.floating-shapes): 直接包含动画小球
+  2. 动画元素生成
+  3. 动态样式系统
+  getShapeStyle() 函数为每个小球生成独特属性：
+  
+  随机位置: Math.random() * 100 + '%' 确保分布均匀
+  循环配色: 8种颜色通过模运算循环分配
+  多样尺寸: 5种大小创造层次感
+  错开时间: 随机延迟(0-10s)和持续时间(20-30s)避免同步
+  4. 关键帧动画
+  @keyframes float 定义了完整的运动轨迹：
+  
+  0%: 从屏幕底部外侧开始，小尺寸、低透明度
+  50%: 运动到屏幕中央，最大尺寸、高透明度
+  100%: 到达屏幕顶部外侧，回到小尺寸、低透明度
+  5. 视觉效果增强
+  透明度变化: 0.4 → 0.9 → 0.4，营造淡入淡出效果
+  旋转动画: 0° → 360°，增加动感
+  缩放效果: 0.5 → 1 → 0.5，创造远近层次
+  发光效果: box-shadow 添加白色光晕
+  毛玻璃背景: backdrop-filter: blur(10px) 增强层次感
+  6. 性能优化
+  pointer-events: none: 禁用鼠标事件，避免干扰用户操作
+  transform属性: 使用硬件加速，性能更佳
+  overflow: hidden: 隐藏边界外的元素，避免滚动条
+*/
 <template>
-    <div class="login-container">
-      <!-- 背景动效 -->
+    <div class="login-container">      
+        <!-- 背景动效容器 - 用于承载所有的浮动动画元素 -->
       <div class="background-animation">
+        <!-- 浮动形状容器 - 专门用来放置动画小球 -->
         <div class="floating-shapes">
-          <div v-for="i in 20" :key="i" class="shape" :style="getShapeStyle(i)"></div>
+          <!-- 使用 v-for 循环生成35个动画小球，每个小球都有唯一的样式 -->
+          <!-- :key="i" 为每个元素提供唯一标识，确保Vue正确追踪元素 -->
+          <!-- :style="getShapeStyle(i)" 为每个小球动态分配位置、颜色、大小等样式 -->
+          <div v-for="i in 35" :key="i" class="shape" :style="getShapeStyle(i)"></div>
         </div>
       </div>
   
@@ -13,19 +50,19 @@
         <div class="left-panel">
           <div class="welcome-content">
             <h1 class="welcome-title">欢迎来到心理疗愈电台</h1>
-            <p class="welcome-subtitle">即刻登录,开始心理疗愈新体验</p>
+            <p class="welcome-subtitle">这里，每一刻倾诉都被温柔接纳，每一次成长都被静静见证</p>
             <div class="feature-list">
               <div class="feature-item">
                 <t-icon name="check-circle" size="20px" />
-                <span>安全可靠的身份验证</span>
+                <span>我们以严谨的隐私守护为您筑起安全空间</span>
               </div>
               <div class="feature-item">
                 <t-icon name="mail" size="20px" />
-                <span>便捷的邮箱验证码登录</span>
+                <span>只需邮箱验证码，即可推开疗愈之门——无需重负轻装前来</span>
               </div>
               <div class="feature-item">
                 <t-icon name="user" size="20px" />
-                <span>个性化的用户体验</span>
+                <span>我们将随您的情绪四季，为您定制温暖的陪伴。</span>
               </div>
             </div>
           </div>
@@ -34,6 +71,7 @@
         <!-- 右侧表单区 -->
         <div class="right-panel">
           <div class="form-container">
+            <h2 class="form-title">现在深呼吸，即刻登录让心灵慢慢着陆</h2>
             <!-- 标签页切换 -->
             <t-tabs 
               v-model="activeTab" 
@@ -244,7 +282,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, reactive, onMounted, onUnmounted } from 'vue'
+  import { ref, reactive } from 'vue'
   import { useRouter } from 'vue-router'
   import { MessagePlugin } from 'tdesign-vue-next'
   
@@ -606,79 +644,132 @@
     } catch (error) {
       console.error("邮箱校验失败:", error)
     }
-  }
-  
-  // 背景动画形状样式
+  }  // 背景动画形状样式生成函数 - 这是动画实现的核心函数
   const getShapeStyle = (index: number) => {
-    const colors = ['#0052D9', '#0366D6', '#40A9FF', '#73D13D', '#52C41A']
-    const sizes = [20, 30, 40, 50, 60]
+    // 定义8种不同的颜色，用于创造丰富的视觉效果
+    // 包含蓝色系、绿色系、红色系、橙色系、紫色系，营造渐变和谐的色彩搭配
+    const colors = ['#0052D9', '#0366D6', '#40A9FF', '#73D13D', '#52C41A', '#FF7875', '#FFA940', '#B37FEB']
     
+    // 定义5种不同的尺寸（像素），从小到大，创造层次感
+    const sizes = [15, 25, 35, 45, 55]
+    
+    // 返回动态样式对象，每个形状都有独特的属性
     return {
+      // 水平位置：Math.random() * 100 生成0-100之间的随机数，确保形状在屏幕宽度范围内随机分布
       left: Math.random() * 100 + '%',
+      
+      // 垂直位置：同样随机分布在屏幕高度范围内
       top: Math.random() * 100 + '%',
+      
+      // 背景颜色：使用模运算(%)循环使用颜色数组，确保每个形状都有颜色
       backgroundColor: colors[index % colors.length],
+      
+      // 宽度：使用模运算循环使用尺寸数组
       width: sizes[index % sizes.length] + 'px',
+      
+      // 高度：与宽度相同，确保形状为正圆形
       height: sizes[index % sizes.length] + 'px',
-      animationDelay: Math.random() * 5 + 's',
-      animationDuration: (Math.random() * 10 + 10) + 's'
+      
+      // 动画延迟：Math.random() * 10 生成0-10秒的随机延迟
+      // 这样不同的形状会在不同时间开始动画，避免所有形状同时出现
+      animationDelay: Math.random() * 10 + 's',
+      
+      // 动画持续时间：Math.random() * 10 + 20 生成20-30秒的随机持续时间
+      // 不同的持续时间让形状以不同速度移动，增加动画的自然感
+      animationDuration: (Math.random() * 10 + 20) + 's'
     }
   }
   </script>
   
-  <style scoped>
+  <style scoped>  /* 登录容器 - 整个页面的根容器 */
   .login-container {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    display: flex;
+    position: relative; /* 相对定位，为内部绝对定位元素提供参考点 */
+    width: 100vw; /* 视口宽度100% */
+    height: 100vh; /* 视口高度100% */
+    display: flex; /* 弹性布局 */
+    /* 渐变背景：从左上到右下，蓝紫色渐变，营造科技感 */
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    overflow: hidden;
+    overflow: hidden; /* 隐藏溢出内容，确保动画不会显示在容器外 */
   }
   
+  /* 背景动画容器 - 负责承载所有动画元素 */
   .background-animation {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    overflow: hidden;
+    position: absolute; /* 绝对定位，脱离文档流，不影响其他元素布局 */
+    top: 0; /* 定位到容器顶部 */
+    left: 0; /* 定位到容器左侧 */
+    width: 100%; /* 占满整个容器宽度 */
+    height: 100%; /* 占满整个容器高度 */
+    pointer-events: none; /* 禁用鼠标事件，确保动画不会干扰用户操作 */
+    overflow: hidden; /* 隐藏溢出的动画元素 */
   }
   
+  /* 浮动形状的直接容器 */
   .floating-shapes {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-  
+    position: relative; /* 相对定位，为内部的shape元素提供定位参考 */
+    width: 100%; /* 占满父容器宽度 */
+    height: 100%; /* 占满父容器高度 */
+  }  /* 动画形状样式 - 定义每个浮动小球的基本样式 */
   .shape {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.1;
+    position: absolute; /* 绝对定位，允许形状在容器内自由定位 */
+    border-radius: 50%; /* 圆角50%，将方形元素变为圆形 */
+    opacity: 0.7; /* 透明度0.7，让形状呈现半透明效果，不会完全遮挡背景 */
+    /* 应用float动画，linear表示匀速运动，infinite表示无限循环 */
     animation: float linear infinite;
+    /* 添加白色发光效果，增强视觉效果，0 0 20px表示阴影模糊半径20px */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
   }
-  
+
+  /* 关键帧动画定义 - 控制形状从底部浮到顶部的完整运动轨迹 */
   @keyframes float {
+    /* 动画起始状态 (0%) */
     0% {
-      transform: translateY(100vh) rotate(0deg);
-      opacity: 0;
+      /* 
+       * translateY(100vh): 垂直位移到视口高度之外(底部外侧)
+       * rotate(0deg): 旋转角度为0度
+       * scale(0.5): 缩放为原始大小的50%，形状较小
+       */
+      transform: translateY(100vh) rotate(0deg) scale(0.5);
+      opacity: 0.4; /* 较低透明度，形状刚出现时比较淡 */
     }
+    
+    /* 动画10%时的状态 - 形状开始变得明显 */
     10% {
-      opacity: 0.1;
+      opacity: 0.8; /* 透明度增加，形状变得更明显 */
     }
+    
+    /* 动画中点状态 (50%) - 形状运动到屏幕中央 */
+    50% {
+      opacity: 0.9; /* 最高透明度，形状最明显的时候 */
+      /* 
+       * translateY(50vh): 移动到视口高度的50%位置(屏幕中央)
+       * rotate(180deg): 旋转180度，完成半圈旋转
+       * scale(1): 缩放为原始大小100%，形状达到最大
+       */
+      transform: translateY(50vh) rotate(180deg) scale(1);
+    }
+    
+    /* 动画90%时的状态 - 形状开始淡出 */
     90% {
-      opacity: 0.1;
+      opacity: 0.8; /* 透明度开始降低 */
     }
+    
+    /* 动画结束状态 (100%) */
     100% {
-      transform: translateY(-100px) rotate(360deg);
-      opacity: 0;
+      /* 
+       * translateY(-100px): 移动到屏幕顶部外侧
+       * rotate(360deg): 完成完整的360度旋转
+       * scale(0.5): 缩放回50%，形状变小
+       */
+      transform: translateY(-100px) rotate(360deg) scale(0.5);
+      opacity: 0.4; /* 透明度降低，形状淡出 */
     }
   }
-  
+    /* 主内容区域 - 放置登录表单和欢迎信息 */
   .main-content {
-    display: flex;
-    width: 100%;
-    height: 100%;
+    display: flex; /* 弹性布局，左右分栏 */
+    width: 100%; /* 占满容器宽度 */
+    height: 100%; /* 占满容器高度 */
+    /* 毛玻璃效果：对背景进行10px的模糊处理，增强层次感 */
     backdrop-filter: blur(10px);
   }
   
