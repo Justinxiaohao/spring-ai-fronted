@@ -33,6 +33,7 @@ const userEmail = ref('')
 
 onMounted(() => {
   const email = localStorage.getItem('userEmail')
+  console.log(email)
   if (!email) {
     MessagePlugin.warning('请先登录')
     router.push('/login')

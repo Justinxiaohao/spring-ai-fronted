@@ -531,9 +531,10 @@
           const userErrorText = await userResponse.text()
           throw new Error(`用户检查失败: ${userErrorText}`)
         }
-          const userResult = await userResponse.json()
+        const userResult = await userResponse.json()
         if (userResult.exists) {
           MessagePlugin.success("登录成功")
+          localStorage.setItem("userEmail", email)
           router.push('/index')
         } else {
           const registerResponse = await fetch("http://localhost:8080/user/register", {
@@ -587,6 +588,7 @@
       }
       
       const result = await response.json()
+      console.log("登录结果:", result)
       if (result.success) {
         localStorage.setItem("userEmail", email)
         MessagePlugin.success("登录成功")
@@ -898,7 +900,7 @@
   }
   
   .form-container {
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--td-bg-color-container);
     border-radius: 20px;
     padding: 48px 48px 40px 48px;
     width: 100%;
@@ -1002,7 +1004,7 @@
   .auto-register-tip {
     margin-top: 20px;
     text-align: center;
-    color: #999;
+    color: #ffffff;
     font-size: 14px;
     line-height: 1.4;
   }
