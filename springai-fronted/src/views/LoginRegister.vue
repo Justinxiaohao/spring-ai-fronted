@@ -535,6 +535,8 @@
         if (userResult.exists) {
           MessagePlugin.success("登录成功")
           localStorage.setItem("userEmail", email)
+          // 设置标记显示AI助手介绍
+          localStorage.setItem("showAIWelcome", "true")
           router.push('/index')
         } else {
           const registerResponse = await fetch("http://localhost:8080/user/register", {
@@ -551,6 +553,8 @@
           }
           // 没有注册过系统会自动注册
           localStorage.setItem("userEmail", email)
+          // 设置标记显示AI助手介绍
+          localStorage.setItem("showAIWelcome", "true")
           MessagePlugin.success("自动注册成功，正在登录中...")
           router.push('/index')
         }
@@ -591,6 +595,8 @@
       console.log("登录结果:", result)
       if (result.success) {
         localStorage.setItem("userEmail", email)
+        // 设置标记显示AI助手介绍
+        localStorage.setItem("showAIWelcome", "true")
         MessagePlugin.success("登录成功")
         router.push('/index')
       } else {
