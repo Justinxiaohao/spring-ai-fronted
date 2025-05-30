@@ -137,6 +137,17 @@ const currentUserAvatar = computed(() => {
   return utils.getAvatarUrl()
 })
 
+// 加载评论
+const loadComments = async () => {
+  if (!props.programId) return
+
+  try {
+    await commentStore.fetchProgramComments(props.programId, 1, 10)
+  } catch (error) {
+    console.error('加载评论失败:', error)
+  }
+}
+
 // 监听节目ID变化
 watch(() => props.programId, (newProgramId) => {
   if (newProgramId) {
@@ -148,17 +159,6 @@ watch(() => props.programId, (newProgramId) => {
 onMounted(() => {
   loadComments()
 })
-
-// 加载评论
-const loadComments = async () => {
-  if (!props.programId) return
-  
-  try {
-    await commentStore.fetchProgramComments(props.programId, 1, 10)
-  } catch (error) {
-    console.error('加载评论失败:', error)
-  }
-}
 
 // 发表评论
 const submitComment = async () => {

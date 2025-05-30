@@ -38,7 +38,7 @@
           <div class="user-avatar">
             <img
               :src="getAvatarUrl(userInfo?.avatar)"
-              :alt="userInfo?.nickname || userInfo?.email"
+              :alt="userInfo?.username || userInfo?.email"
               class="avatar-image"
             />
           </div>
@@ -117,18 +117,7 @@
             </div>
             <t-icon name="chevron-right" class="menu-arrow" />
           </div>
-          
-          <div class="menu-item" @click="showSettings">
-            <div class="menu-icon">
-              <t-icon name="setting" size="24px" />
-            </div>
-            <div class="menu-content">
-              <h3 class="menu-title">设置</h3>
-              <p class="menu-desc">应用设置</p>
-            </div>
-            <t-icon name="chevron-right" class="menu-arrow" />
-          </div>
-          
+        
           <div class="menu-item" @click="logout">
             <div class="menu-icon">
               <t-icon name="logout" size="24px" />
@@ -303,29 +292,6 @@ const loadUserData = async () => {
     }
   } catch (error: any) {
     console.error('加载用户数据失败:', error)
-
-    // 根据错误类型显示不同的提示
-    if (error.message.includes('HTTP error! status: 404')) {
-      MessagePlugin.error('用户信息不存在，请重新登录')
-    } else if (error.message.includes('HTTP error! status: 401')) {
-      MessagePlugin.error('用户认证失败，请重新登录')
-    } else if (error.message.includes('HTTP error! status: 500')) {
-      MessagePlugin.error('服务器错误，请稍后重试')
-    } else {
-      MessagePlugin.error(error.message || '加载用户数据失败')
-    }
-
-    // 如果是认证相关错误，跳转到登录页
-    if (error.message.includes('用户不存在') ||
-        error.message.includes('未登录') ||
-        error.message.includes('认证失败') ||
-        error.message.includes('HTTP error! status: 401') ||
-        error.message.includes('HTTP error! status: 404')) {
-      setTimeout(() => {
-        localStorage.removeItem('userEmail')
-        router.push('/login')
-      }, 2000)
-    }
   } finally {
     loading.value = false
   }
@@ -343,12 +309,9 @@ const saveUserInfo = async () => {
     const formData = new FormData()
     formData.append('username', editForm.nickname)
     formData.append('bio', editForm.bio)
-
-    // 如果有选择新的头像文件，添加到FormData
     if (selectedFile.value) {
       formData.append('avatar', selectedFile.value)
     }
-
     console.log('更新用户信息，包含头像上传')
     const userEmail = localStorage.getItem('userEmail')
 
@@ -474,9 +437,6 @@ const goToPlayHistory = () => {
   router.push('/user/history')
 }
 
-const showSettings = () => {
-  MessagePlugin.info('设置功能开发中...')
-}
 
 const logout = () => {
   localStorage.removeItem('userEmail')

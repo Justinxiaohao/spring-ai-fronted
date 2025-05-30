@@ -4,32 +4,40 @@
     <header class="app-header">
       <div class="header-content">
         <div class="logo-section">
-          <h1 class="app-title">🎵 电台FM</h1>
+          <h1 class="app-title">🎵 心理治愈电台</h1>
         </div>
-
+        
         <div class="search-section">
           <t-input
             v-model="searchKeyword"
-            placeholder="搜索节目、主播或标签..."
+            placeholder="搜索电台节目、主播或标签..."
             clearable
             @enter="handleSearch"
+            @clear="clearSearch"
+            size="large"
+            class="search-input"
           >
             <template #prefix-icon>
               <t-icon name="search" />
             </template>
+            <template #suffix>
+              <t-button
+                theme="primary"
+                @click="handleSearch"
+                :disabled="!searchKeyword.trim()"
+                class="search-btn"
+              >
+                搜索
+              </t-button>
+            </template>
           </t-input>
         </div>
-
+        
         <div class="user-section">
           <t-dropdown :options="userMenuOptions" @click="handleUserMenuClick">
             <div class="user-info-trigger">
               <div class="user-avatar">
-                <img
-                  :src="userAvatarUrl"
-                  :alt="userEmail"
-                  class="avatar-image"
-                  @error="handleAvatarError"
-                />
+                <img :src="userAvatarUrl":alt="userEmail" class="avatar-image"/>
               </div>
               <span class="user-email">{{ userEmail }}</span>
               <t-icon name="chevron-down" class="dropdown-icon" />
@@ -44,26 +52,24 @@
       <!-- 分类导航 -->
       <section class="category-nav" v-if="categories.length > 0">
         <div class="nav-container">
-          <t-button
-            v-for="category in categories"
-            :key="category.id"
-            :theme="selectedCategoryId === category.id ? 'primary' : 'default'"
-            :variant="selectedCategoryId === category.id ? 'base' : 'outline'"
-            size="small"
-            @click="selectCategory(category.id)"
-            class="category-btn"
-          >
-            {{ category.name }}
-          </t-button>
-          <t-button
-            :theme="selectedCategoryId === null ? 'primary' : 'default'"
-            :variant="selectedCategoryId === null ? 'base' : 'outline'"
-            size="small"
-            @click="selectCategory(null)"
-            class="category-btn"
-          >
-            全部
-          </t-button>
+          <div class="category-scroll">
+            <div
+              v-for="category in categories"
+              :key="category.id"
+              :class="['category-tag', { active: selectedCategoryId === category.id }]"
+              @click="selectCategory(category.id)"
+            >
+              <span class="category-icon">{{ getCategoryIcon(category.name) }}</span>
+              <span class="category-name">{{ category.name }}</span>
+            </div>
+            <div
+              :class="['category-tag', { active: selectedCategoryId === null }]"
+              @click="selectCategory(null)"
+            >
+              <span class="category-icon">🌟</span>
+              <span class="category-name">全部</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -113,39 +119,10 @@
           </button>
         </div>
       </section>
-
-      <!-- 热门节目 -->
-      <section class="hot-section">
-        <div class="section-header">
-          <h2 class="section-title">🔥 热门节目</h2>
-          <t-button theme="primary" variant="text" @click="viewMore('hot')">
-            查看更多
-            <template #suffix>
-              <t-icon name="chevron-right" />
-            </template>
-          </t-button>
-        </div>
-
-        <div class="programs-grid" v-if="hotPrograms.length > 0">
-          <ProgramCard
-            v-for="program in hotPrograms.slice(0, 8)"
-            :key="program.id"
-            :program="program"
-            class="animate__animated animate__fadeInUp"
-          />
-        </div>
-
-        <t-skeleton
-          v-else-if="programStore.loading"
-          :row-col="[{ width: '100%', height: '200px' }]"
-          class="skeleton-grid"
-        />
-      </section>
-
-      <!-- 最新节目 -->
+      <!-- 热门节目信息展示 -->
       <section class="latest-section">
         <div class="section-header">
-          <h2 class="section-title">🆕 最新节目</h2>
+          <h2 class="section-title">🔥 热门节目</h2>
           <t-button theme="primary" variant="text" @click="viewMore('latest')">
             查看更多
             <template #suffix>
@@ -218,12 +195,6 @@ const categories = computed(() => categoryStore.categories);
 // 用户菜单选项
 const userMenuOptions = [
   { content: "个人中心", value: "profile" },
-  { content: "我的歌单", value: "playlists" },
-  { content: "我的喜欢", value: "liked" },
-  { content: "我的评论", value: "comments" },
-  { content: "播放历史", value: "history" },
-  { content: "API调试", value: "debug" },
-  { content: "设置", value: "settings" },
   { content: "退出登录", value: "logout" },
 ];
 
@@ -275,12 +246,6 @@ const loadUserInfo = async () => {
     // 使用默认头像
     userAvatarUrl.value = utils.getAvatarUrl();
   }
-};
-
-// 头像加载错误处理
-const handleAvatarError = (event: Event) => {
-  const target = event.target as HTMLImageElement;
-  target.src = utils.getAvatarUrl();
 };
 
 // 加载初始数据
@@ -341,6 +306,10 @@ const handleSearch = () => {
   }
 };
 
+const clearSearch = () => {
+  searchKeyword.value = '';
+};
+
 const handleUserMenuClick = (data: any) => {
   switch (data.value) {
     case "logout":
@@ -348,24 +317,9 @@ const handleUserMenuClick = (data: any) => {
       break;
     case "profile":
       router.push("/user/profile");
-      break;
-    case "playlists":
-      router.push("/playlists");
-      break;
-    case "liked":
-      router.push("/user/liked");
-      break;
-    case "comments":
-      router.push("/user/comments");
-      break;
-    case "history":
-      router.push("/user/history");
-      break;
+      break
     case "debug":
       router.push("/debug");
-      break;
-    case "settings":
-      MessagePlugin.info("设置功能开发中...");
       break;
   }
 };
@@ -392,6 +346,35 @@ const viewMore = (type: string) => {
 
 const formatPlayCount = (count: number) => {
   return utils.formatPlayCount(count);
+};
+
+// 获取分类图标
+const getCategoryIcon = (categoryName: string) => {
+  const iconMap: Record<string, string> = {
+    '冥想': '🧘',
+    '放松': '😌',
+    '睡眠': '😴',
+    '音乐': '🎵',
+    '故事': '📖',
+    '学习': '📚',
+    '英语': '🇺🇸',
+    '正念': '🌸',
+    '瑜伽': '🧘‍♀️',
+    '自然': '🌿',
+    '白噪音': '🌊',
+    '治愈': '💚',
+    '心理': '🧠',
+    '健康': '💪',
+    '儿童': '👶',
+    '冥想指导': '🧘',
+    '放松助眠': '😌',
+    '纯净音乐': '🎵',
+    '睡眠故事': '📖',
+    '自然之声': '🌿',
+    '正念练习': '🌱',
+    'ASMR舒缓': '🌸'
+  };
+  return iconMap[categoryName] || '🎯';
 };
 
 // AI助手相关处理
@@ -429,7 +412,7 @@ const handleStartChat = (question?: string) => {
 .header-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 16px 32px;
+  padding: 20px 100px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -452,11 +435,23 @@ const handleStartChat = (question?: string) => {
 
 .search-section {
   flex: 1;
-  max-width: 400px;
+  max-width: 500px;
+}
+
+.search-input {
+  width: 100%;
+}
+
+.search-btn {
+  margin-left: 8px;
+  border-radius: 8px;
+  font-weight: 600;
 }
 
 .user-section {
   flex-shrink: 0;
+  position: absolute;
+  right: 60px;
 }
 
 .user-info-trigger {
@@ -525,18 +520,68 @@ const handleStartChat = (question?: string) => {
 /* 分类导航样式 */
 .category-nav {
   margin-bottom: 32px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
 }
 
 .nav-container {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 16px 0;
+  padding: 20px 24px;
 }
 
-.category-btn {
-  border-radius: 20px;
+.category-scroll {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.category-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 24px;
+  background: #f8fafc;
+  border: 2px solid transparent;
+  cursor: pointer;
   transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  user-select: none;
+}
+
+.category-tag:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.category-tag.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.category-tag.active:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+}
+
+.category-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.category-name {
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 /* 区块标题样式 */
@@ -618,6 +663,7 @@ const handleStartChat = (question?: string) => {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -713,8 +759,6 @@ const handleStartChat = (question?: string) => {
   gap: 24px;
 }
 
-/* 区块间距 */
-.hot-section,
 .latest-section {
   margin-bottom: 48px;
 }
@@ -782,7 +826,21 @@ const handleStartChat = (question?: string) => {
   }
 
   .nav-container {
+    padding: 16px 20px;
+  }
+
+  .category-scroll {
     justify-content: center;
+    gap: 8px;
+  }
+
+  .category-tag {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .category-icon {
+    font-size: 14px;
   }
 
   .programs-grid {

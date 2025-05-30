@@ -207,34 +207,6 @@ const pagination = computed(() => programStore.pagination)
 const loading = computed(() => programStore.loading)
 const categories = computed(() => categoryStore.categories)
 
-// 监听路由查询参数
-watch(() => route.query.q, (newQuery) => {
-  if (newQuery) {
-    searchKeyword.value = newQuery as string
-    handleSearch()
-  }
-}, { immediate: true })
-
-// 初始化
-onMounted(async () => {
-  await categoryStore.fetchCategories()
-  
-  // 如果没有搜索关键词，加载推荐节目
-  if (!route.query.q) {
-    loadRecommendedPrograms()
-  }
-})
-
-// 加载推荐节目
-const loadRecommendedPrograms = async () => {
-  try {
-    await programStore.fetchFeaturedPrograms(6)
-    recommendedPrograms.value = programStore.featuredPrograms
-  } catch (error) {
-    console.error('加载推荐节目失败:', error)
-  }
-}
-
 // 搜索处理
 const handleSearch = async () => {
   if (!searchKeyword.value.trim()) return
@@ -276,6 +248,34 @@ const handleSearch = async () => {
     }
   })
 }
+
+// 加载推荐节目
+const loadRecommendedPrograms = async () => {
+  try {
+    await programStore.fetchFeaturedPrograms(6)
+    recommendedPrograms.value = programStore.featuredPrograms
+  } catch (error) {
+    console.error('加载推荐节目失败:', error)
+  }
+}
+
+// 监听路由查询参数
+watch(() => route.query.q, (newQuery) => {
+  if (newQuery) {
+    searchKeyword.value = newQuery as string
+    handleSearch()
+  }
+}, { immediate: true })
+
+// 初始化
+onMounted(async () => {
+  await categoryStore.fetchCategories()
+
+  // 如果没有搜索关键词，加载推荐节目
+  if (!route.query.q) {
+    loadRecommendedPrograms()
+  }
+})
 
 // 事件处理
 const goBack = () => {
