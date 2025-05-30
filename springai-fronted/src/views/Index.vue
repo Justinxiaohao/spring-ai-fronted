@@ -207,7 +207,7 @@ const selectedCategoryId = ref<number | null>(null);
 const currentFeaturedIndex = ref(0);
 const showAIWelcome = ref(false);
 const chatBotRef = ref();
-let featuredTimer: NodeJS.Timeout | null = null;
+let featuredTimer: number | null = null;
 
 // 计算属性
 const programs = computed(() => programStore.programs);
