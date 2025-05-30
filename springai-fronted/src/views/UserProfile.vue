@@ -36,8 +36,8 @@
       <div class="content-container">
         <div class="user-card">
           <div class="user-avatar">
-            <img 
-              :src="userInfo?.avatar || '/default-avatar.jpg'" 
+            <img
+              :src="getAvatarUrl(userInfo?.avatar)"
               :alt="userInfo?.nickname || userInfo?.email"
               class="avatar-image"
             />
@@ -162,7 +162,49 @@
         </t-form-item>
         
         <t-form-item label="头像" name="avatar">
-          <t-input v-model="editForm.avatar" placeholder="请输入头像URL" />
+          <div class="avatar-upload-section">
+            <div class="avatar-preview">
+              <img
+                :src="avatarPreview || getAvatarUrl(userInfo?.avatar)"
+                alt="头像预览"
+                class="preview-image"
+              />
+            </div>
+            <div class="upload-controls">
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif"
+                style="display: none"
+                @change="handleFileSelect"
+              />
+              <t-button
+                theme="primary"
+                variant="outline"
+                :loading="uploading"
+                @click="selectFile"
+              >
+                <template #icon>
+                  <t-icon name="upload" />
+                </template>
+                {{ uploading ? '上传中...' : '选择头像' }}
+              </t-button>
+              <t-button
+                v-if="avatarPreview || selectedFile"
+                theme="default"
+                variant="outline"
+                @click="clearAvatar"
+              >
+                清除
+              </t-button>
+              <div class="upload-tips">
+                <p>支持 JPG、PNG、GIF 格式，文件大小不超过 5MB</p>
+                <p v-if="selectedFile" class="file-info">
+                  已选择：{{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})
+                </p>
+              </div>
+            </div>
+          </div>
         </t-form-item>
         
         <t-form-item label="个人简介" name="bio">
@@ -196,6 +238,12 @@ const loading = ref(false)
 const showEditDialog = ref(false)
 const saving = ref(false)
 const formRef = ref()
+const fileInputRef = ref()
+
+// 头像上传相关
+const selectedFile = ref<File | null>(null)
+const avatarPreview = ref('')
+const uploading = ref(false)
 
 // 编辑表单
 const editForm = reactive({
@@ -231,27 +279,50 @@ const loadUserData = async () => {
       throw new Error('用户未登录，请重新登录')
     }
 
+    console.log('正在获取用户信息，邮箱:', userEmail)
     const userResponse = await userApi.getUserInfo()
+    console.log('用户信息响应:', userResponse)
 
-    if (userResponse.success) {
+    if (userResponse.success && userResponse.data) {
       userInfo.value = userResponse.data
       // 填充编辑表单
       editForm.nickname = userResponse.data.username || ''
       editForm.avatar = userResponse.data.avatar || ''
       editForm.bio = userResponse.data.bio || ''
+
+      console.log('用户信息加载成功:', userResponse.data)
     } else {
+      // 处理各种错误情况
       if (userResponse.code === 404) {
         throw new Error('用户不存在，请检查登录状态或重新登录')
+      } else if (userResponse.code === 401) {
+        throw new Error('用户认证失败，请重新登录')
+      } else {
+        throw new Error(userResponse.message || '获取用户信息失败')
       }
-      throw new Error(userResponse.message || '获取用户信息失败')
     }
   } catch (error: any) {
     console.error('加载用户数据失败:', error)
-    MessagePlugin.error(error.message || '加载用户数据失败')
 
-    // 如果是用户不存在或未登录，跳转到登录页
-    if (error.message.includes('用户不存在') || error.message.includes('未登录')) {
+    // 根据错误类型显示不同的提示
+    if (error.message.includes('HTTP error! status: 404')) {
+      MessagePlugin.error('用户信息不存在，请重新登录')
+    } else if (error.message.includes('HTTP error! status: 401')) {
+      MessagePlugin.error('用户认证失败，请重新登录')
+    } else if (error.message.includes('HTTP error! status: 500')) {
+      MessagePlugin.error('服务器错误，请稍后重试')
+    } else {
+      MessagePlugin.error(error.message || '加载用户数据失败')
+    }
+
+    // 如果是认证相关错误，跳转到登录页
+    if (error.message.includes('用户不存在') ||
+        error.message.includes('未登录') ||
+        error.message.includes('认证失败') ||
+        error.message.includes('HTTP error! status: 401') ||
+        error.message.includes('HTTP error! status: 404')) {
       setTimeout(() => {
+        localStorage.removeItem('userEmail')
         router.push('/login')
       }, 2000)
     }
@@ -266,20 +337,55 @@ const saveUserInfo = async () => {
   if (!valid) return false
 
   saving.value = true
-  
+
   try {
-    const updateData = {
-      username: editForm.nickname,
-      avatar: editForm.avatar,
-      bio: editForm.bio
+    // 使用新的带头像上传的API
+    const formData = new FormData()
+    formData.append('username', editForm.nickname)
+    formData.append('bio', editForm.bio)
+
+    // 如果有选择新的头像文件，添加到FormData
+    if (selectedFile.value) {
+      formData.append('avatar', selectedFile.value)
     }
-    const response = await userApi.updateUserInfo(updateData)
-    if (response.success) {
-      userInfo.value = response.data
+
+    console.log('更新用户信息，包含头像上传')
+    const userEmail = localStorage.getItem('userEmail')
+
+    // 构建API URL
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+    // 确保baseUrl不以斜杠结尾
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    const apiUrl = `${cleanBaseUrl}/api/me/update-with-avatar`
+    console.log('Base URL:', baseUrl)
+    console.log('Clean Base URL:', cleanBaseUrl)
+    console.log('Final API URL:', apiUrl)
+    console.log('用户邮箱:', userEmail)
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'User-Email': userEmail || ''
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('更新响应:', result)
+
+    if (result.success && result.data) {
+      userInfo.value = result.data
       showEditDialog.value = false
+      avatarPreview.value = ''
+      selectedFile.value = null
+      editForm.avatar = result.data.avatar || ''
       MessagePlugin.success('保存成功')
     } else {
-      throw new Error(response.message || '保存失败')
+      throw new Error(result.message || '保存失败')
     }
   } catch (error: any) {
     console.error('保存用户信息失败:', error)
@@ -287,8 +393,64 @@ const saveUserInfo = async () => {
   } finally {
     saving.value = false
   }
-  
+
   return true
+}
+
+// 头像上传相关方法
+const selectFile = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  if (!file) return
+
+  // 验证文件类型
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+  if (!allowedTypes.includes(file.type)) {
+    MessagePlugin.error('只支持JPG、PNG、GIF格式的图片文件')
+    return
+  }
+
+  // 验证文件大小（5MB）
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) {
+    MessagePlugin.error('文件大小不能超过5MB')
+    return
+  }
+
+  selectedFile.value = file
+
+  // 生成预览
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    avatarPreview.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
+
+const clearAvatar = () => {
+  selectedFile.value = null
+  avatarPreview.value = ''
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 获取正确的头像URL
+const getAvatarUrl = (avatar?: string): string => {
+  return utils.getAvatarUrl(avatar)
 }
 
 // 事件处理
@@ -509,6 +671,47 @@ const formatDate = (dateString: string) => {
 
 .menu-arrow {
   color: #9ca3af;
+}
+
+/* 头像上传样式 */
+.avatar-upload-section {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.avatar-preview {
+  flex-shrink: 0;
+}
+
+.preview-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e5e7eb;
+}
+
+.upload-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upload-tips {
+  margin-top: 8px;
+}
+
+.upload-tips p {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.file-info {
+  color: #059669 !important;
+  font-weight: 500;
 }
 
 /* 响应式设计 */

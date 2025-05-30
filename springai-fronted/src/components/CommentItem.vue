@@ -129,8 +129,8 @@ const submitting = ref(false)
 
 // 计算属性
 const avatarUrl = computed(() => {
-  // 这里可以根据用户邮箱生成头像，或使用默认头像
-  return '/default-avatar.jpg'
+  // 使用评论中的用户头像，如果没有则使用默认头像
+  return utils.getAvatarUrl(props.comment.userAvatar)
 })
 
 const canDelete = computed(() => {

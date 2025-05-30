@@ -208,22 +208,6 @@ const programTags = computed(() =>
     : []
 );
 
-// 监听路由变化
-watch(
-  () => route.params.id,
-  (newId) => {
-    if (newId) {
-      loadProgramDetail();
-    }
-  },
-  { immediate: true }
-);
-
-// 初始化
-onMounted(() => {
-  loadProgramDetail();
-});
-
 // 加载节目详情
 const loadProgramDetail = async () => {
   const programId = Number(route.params.id);
@@ -298,6 +282,22 @@ const handleAddedToPlaylist = (playlist: any) => {
 const formatDuration = (seconds: number) => utils.formatDuration(seconds);
 const formatPlayCount = (count: number) => utils.formatPlayCount(count);
 const formatDate = (dateString: string) => utils.formatDate(dateString);
+
+// 监听路由变化
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) {
+      loadProgramDetail();
+    }
+  },
+  { immediate: true }
+);
+
+// 初始化
+onMounted(() => {
+  loadProgramDetail();
+});
 </script>
 
 <style scoped>

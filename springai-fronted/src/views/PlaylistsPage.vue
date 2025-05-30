@@ -255,18 +255,38 @@ const publicPlaylists = computed(() => {
 
 // 初始化
 onMounted(async () => {
+  // 检查用户登录状态
+  const userEmail = localStorage.getItem('userEmail')
+  if (!userEmail) {
+    MessagePlugin.warning('请先登录')
+    router.push('/login')
+    return
+  }
+
   await loadPlaylists()
 })
 
 // 加载歌单列表
 const loadPlaylists = async () => {
   loading.value = true
-  
+
   try {
+    console.log('正在加载歌单列表...')
     await playlistStore.fetchUserPlaylists()
+    console.log('歌单列表加载完成')
   } catch (error: any) {
     console.error('加载歌单列表失败:', error)
-    MessagePlugin.error(error.message || '加载失败')
+
+    // 根据错误类型显示不同的提示
+    if (error.message && (error.message.includes('HTTP error! status: 404') || error.message.includes('HTTP error! status: 401'))) {
+      MessagePlugin.error('用户认证失败，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else {
+      MessagePlugin.error(error.message || '加载歌单列表失败')
+    }
   } finally {
     loading.value = false
   }

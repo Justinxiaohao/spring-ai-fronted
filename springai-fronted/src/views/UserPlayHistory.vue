@@ -157,32 +157,67 @@ const uniquePrograms = computed(() => {
 
 // 初始化
 onMounted(async () => {
+  // 检查用户登录状态
+  const userEmail = localStorage.getItem('userEmail')
+  if (!userEmail) {
+    MessagePlugin.warning('请先登录')
+    router.push('/login')
+    return
+  }
+
   await loadPlayHistory()
 })
 
 // 加载播放历史
 const loadPlayHistory = async () => {
   loading.value = true
-  
+
   try {
+    console.log('正在加载播放历史...')
     const response = await userApi.getPlayHistory(
       pagination.value.current,
       pagination.value.size
     )
-    
-    if (response.success) {
-      programs.value = response.data.records
+    console.log('播放历史响应:', response)
+
+    if (response.success && response.data) {
+      programs.value = response.data.records || []
       pagination.value = {
-        current: response.data.current,
-        size: response.data.size,
-        total: response.data.total
+        current: response.data.current || 1,
+        size: response.data.size || 12,
+        total: response.data.total || 0
       }
     } else {
+      if (response.code === 404) {
+        // 用户不存在或未登录
+        MessagePlugin.error('用户信息不存在，请重新登录')
+        setTimeout(() => {
+          localStorage.removeItem('userEmail')
+          router.push('/login')
+        }, 2000)
+        return
+      }
       throw new Error(response.message || '加载失败')
     }
   } catch (error: any) {
     console.error('加载播放历史失败:', error)
-    MessagePlugin.error(error.message || '加载失败')
+
+    // 根据错误类型显示不同的提示
+    if (error.message.includes('HTTP error! status: 404')) {
+      MessagePlugin.error('播放历史不存在，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else if (error.message.includes('HTTP error! status: 401')) {
+      MessagePlugin.error('用户认证失败，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else {
+      MessagePlugin.error(error.message || '加载播放历史失败')
+    }
   } finally {
     loading.value = false
   }
@@ -191,14 +226,15 @@ const loadPlayHistory = async () => {
 // 清空历史
 const clearHistory = async () => {
   try {
-    // 这里应该调用清空历史的API
-    // const response = await userApi.clearPlayHistory()
-    
-    // 临时实现：直接清空本地数据
-    programs.value = []
-    pagination.value.total = 0
-    showClearDialog.value = false
-    MessagePlugin.success('播放历史已清空')
+    const response = await userApi.clearPlayHistory()
+    if (response.success) {
+      programs.value = []
+      pagination.value.total = 0
+      showClearDialog.value = false
+      MessagePlugin.success('播放历史已清空')
+    } else {
+      throw new Error(response.message || '清空失败')
+    }
   } catch (error: any) {
     console.error('清空历史失败:', error)
     MessagePlugin.error(error.message || '清空失败')

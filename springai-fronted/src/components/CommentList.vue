@@ -108,6 +108,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { useCommentStore } from '@/stores/counter'
+import { utils, userApi } from '@/services/api'
 import type { Comment } from '@/types'
 import CommentItem from './CommentItem.vue'
 
@@ -131,7 +132,9 @@ const canComment = computed(() => {
 })
 
 const currentUserAvatar = computed(() => {
-  return '/default-avatar.jpg'
+  // 这里可以从用户store或者localStorage获取当前用户头像
+  // 暂时使用默认头像，实际应用中可以获取用户信息
+  return utils.getAvatarUrl()
 })
 
 // 监听节目ID变化

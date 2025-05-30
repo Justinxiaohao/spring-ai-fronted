@@ -160,19 +160,26 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { useCommentStore } from '@/stores/counter'
-import { utils } from '@/services/api'
+import { userApi, commentApi, utils } from '@/services/api'
 import type { Comment } from '@/types'
 import AudioPlayer from '@/components/AudioPlayer.vue'
 
 const router = useRouter()
-const commentStore = useCommentStore()
 
 const loading = ref(false)
 const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const currentComment = ref<Comment | null>(null)
 const currentSort = ref('latest')
+const comments = ref<Comment[]>([])
+
+// 分页信息
+const pagination = ref({
+  current: 1,
+  size: 10,
+  total: 0,
+  totalPages: 0
+})
 
 // 排序选项
 const sortOptions = [
@@ -180,10 +187,6 @@ const sortOptions = [
   { content: '最早评论', value: 'earliest' },
   { content: '按节目分组', value: 'program' }
 ]
-
-// 计算属性
-const comments = computed(() => commentStore.userComments)
-const pagination = computed(() => commentStore.pagination)
 
 const currentSortLabel = computed(() => {
   const option = sortOptions.find(opt => opt.value === currentSort.value)
@@ -207,23 +210,71 @@ const recentComments = computed(() => {
 
 // 初始化
 onMounted(async () => {
+  // 检查用户登录状态
+  const userEmail = localStorage.getItem('userEmail')
+  if (!userEmail) {
+    MessagePlugin.warning('请先登录')
+    router.push('/login')
+    return
+  }
+
   await loadUserComments()
 })
 
 // 加载用户评论
 const loadUserComments = async () => {
   loading.value = true
-  
+
   try {
-    // 这里需要获取当前用户ID，临时使用固定值
-    const userId = 1 // 应该从用户状态或localStorage获取
-    await commentStore.fetchUserComments(userId, pagination.value.current, pagination.value.size)
-    
-    // 根据排序方式排序
-    sortComments()
+    console.log('正在加载用户评论...')
+    const response = await userApi.getUserComments(
+      pagination.value.current,
+      pagination.value.size
+    )
+    console.log('用户评论响应:', response)
+
+    if (response.success && response.data) {
+      comments.value = response.data.items || []
+      pagination.value = {
+        current: response.data.page || 1,
+        size: response.data.limit || 10,
+        total: response.data.total || 0,
+        totalPages: response.data.totalPages || 0
+      }
+
+      // 根据排序方式排序
+      sortComments()
+    } else {
+      if (response.code === 404) {
+        // 用户不存在或未登录
+        MessagePlugin.error('用户信息不存在，请重新登录')
+        setTimeout(() => {
+          localStorage.removeItem('userEmail')
+          router.push('/login')
+        }, 2000)
+        return
+      }
+      throw new Error(response.message || '加载失败')
+    }
   } catch (error: any) {
     console.error('加载用户评论失败:', error)
-    MessagePlugin.error(error.message || '加载失败')
+
+    // 根据错误类型显示不同的提示
+    if (error.message.includes('HTTP error! status: 404')) {
+      MessagePlugin.error('用户信息不存在，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else if (error.message.includes('HTTP error! status: 401')) {
+      MessagePlugin.error('用户认证失败，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else {
+      MessagePlugin.error(error.message || '加载用户评论失败')
+    }
   } finally {
     loading.value = false
   }
@@ -281,31 +332,38 @@ const confirmDelete = async () => {
   if (!currentComment.value) return false
 
   deleting.value = true
-  
+
   try {
-    await commentStore.deleteComment(currentComment.value.id)
-    MessagePlugin.success('评论删除成功')
-    showDeleteDialog.value = false
-    
-    // 重新加载评论列表
-    await loadUserComments()
+    const response = await commentApi.deleteComment(currentComment.value.id)
+    if (response.success) {
+      MessagePlugin.success('评论删除成功')
+      showDeleteDialog.value = false
+
+      // 重新加载评论列表
+      await loadUserComments()
+    } else {
+      throw new Error(response.message || '删除失败')
+    }
   } catch (error: any) {
     console.error('删除评论失败:', error)
     MessagePlugin.error(error.message || '删除失败')
   } finally {
     deleting.value = false
   }
-  
+
   return true
 }
 
 const handlePageChange = (page: number) => {
-  commentStore.fetchUserComments(1, page, pagination.value.size) // 临时使用用户ID 1
+  pagination.value.current = page
+  loadUserComments()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const handlePageSizeChange = (pageSize: number) => {
-  commentStore.fetchUserComments(1, 1, pageSize) // 临时使用用户ID 1
+  pagination.value.size = pageSize
+  pagination.value.current = 1
+  loadUserComments()
 }
 
 // 工具函数

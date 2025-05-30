@@ -30,14 +30,24 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${endpoint}`
+  // 确保URL构建正确
+  const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  const url = `${baseUrl}${cleanEndpoint}`
 
   const defaultOptions: RequestInit = {
     headers: {
-      'Content-Type': 'application/json',
       ...options.headers,
     },
     ...options,
+  }
+
+  // 如果不是FormData，则设置Content-Type
+  if (!(options.body instanceof FormData)) {
+    defaultOptions.headers = {
+      'Content-Type': 'application/json',
+      ...defaultOptions.headers,
+    }
   }
 
   // 自动添加用户邮箱到请求头
@@ -170,9 +180,23 @@ export const userApi = {
     return request<Playlist[]>('/api/me/playlists')
   },
 
+
+
   // 获取用户的评论
   async getUserComments(page = 1, limit = 10): Promise<ApiResponse<CommentListResponse>> {
     return request<CommentListResponse>(`/api/me/comments?page=${page}&limit=${limit}`)
+  },
+
+  // 获取用户播放历史
+  async getPlayHistory(page = 1, limit = 10): Promise<ApiResponse<PaginationData<Program>>> {
+    return request<PaginationData<Program>>(`/api/me/play-history?page=${page}&limit=${limit}`)
+  },
+
+  // 清空播放历史
+  async clearPlayHistory(): Promise<ApiResponse<null>> {
+    return request<null>('/api/me/play-history', {
+      method: 'DELETE'
+    })
   }
 }
 
@@ -261,11 +285,7 @@ export const commentApi = {
     return request<Comment[]>(`/api/comments/${commentId}/replies`)
   },
 
-  // 获取用户评论列表
-  async getUserComments(userId: number, params: CommentQueryParams = {}): Promise<ApiResponse<CommentListResponse>> {
-    const { page = 1, limit = 10 } = params
-    return request<CommentListResponse>(`/api/users/${userId}/comments?page=${page}&limit=${limit}`)
-  },
+
 
   // 获取评论详情
   async getCommentDetail(commentId: number): Promise<ApiResponse<Comment>> {
@@ -303,7 +323,9 @@ export const searchApi = {
 export const chatApi = {
   // 发送聊天消息（流式响应）
   async sendMessage(prompt: string, chatId: string): Promise<ReadableStream<Uint8Array> | null> {
-    const url = `${API_BASE_URL}/ai/chat?prompt=${encodeURIComponent(prompt)}&chatId=${encodeURIComponent(chatId)}`
+    // 确保URL构建正确
+    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+    const url = `${baseUrl}/ai/chat?prompt=${encodeURIComponent(prompt)}&chatId=${encodeURIComponent(chatId)}`
 
     try {
       const response = await fetch(url, {
@@ -350,5 +372,23 @@ export const utils = {
       month: 'long',
       day: 'numeric'
     })
+  },
+
+  // 获取正确的头像URL
+  getAvatarUrl(avatar?: string): string {
+    if (!avatar) {
+      return '/default-avatar.jpg'
+    }
+
+    // 如果已经是完整URL，直接返回
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+      return avatar
+    }
+
+    // 如果是相对路径，拼接后端服务器地址
+    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+    const cleanAvatar = avatar.startsWith('/') ? avatar : `/${avatar}`
+
+    return `${baseUrl}${cleanAvatar}`
   }
 }

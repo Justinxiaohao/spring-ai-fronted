@@ -149,35 +149,70 @@ const totalDuration = computed(() => {
 
 // 初始化
 onMounted(async () => {
+  // 检查用户登录状态
+  const userEmail = localStorage.getItem('userEmail')
+  if (!userEmail) {
+    MessagePlugin.warning('请先登录')
+    router.push('/login')
+    return
+  }
+
   await loadLikedPrograms()
 })
 
 // 加载喜欢的节目
 const loadLikedPrograms = async () => {
   loading.value = true
-  
+
   try {
+    console.log('正在加载喜欢的节目...')
     const response = await userApi.getLikedPrograms(
       pagination.value.current,
       pagination.value.size
     )
-    
-    if (response.success) {
-      programs.value = response.data.records
+    console.log('喜欢节目响应:', response)
+
+    if (response.success && response.data) {
+      programs.value = response.data.records || []
       pagination.value = {
-        current: response.data.current,
-        size: response.data.size,
-        total: response.data.total
+        current: response.data.current || 1,
+        size: response.data.size || 12,
+        total: response.data.total || 0
       }
-      
+
       // 根据排序方式排序
       sortPrograms()
     } else {
+      if (response.code === 404) {
+        // 用户不存在或未登录
+        MessagePlugin.error('用户信息不存在，请重新登录')
+        setTimeout(() => {
+          localStorage.removeItem('userEmail')
+          router.push('/login')
+        }, 2000)
+        return
+      }
       throw new Error(response.message || '加载失败')
     }
   } catch (error: any) {
     console.error('加载喜欢的节目失败:', error)
-    MessagePlugin.error(error.message || '加载失败')
+
+    // 根据错误类型显示不同的提示
+    if (error.message.includes('HTTP error! status: 404')) {
+      MessagePlugin.error('用户信息不存在，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else if (error.message.includes('HTTP error! status: 401')) {
+      MessagePlugin.error('用户认证失败，请重新登录')
+      setTimeout(() => {
+        localStorage.removeItem('userEmail')
+        router.push('/login')
+      }, 2000)
+    } else {
+      MessagePlugin.error(error.message || '加载喜欢的节目失败')
+    }
   } finally {
     loading.value = false
   }

@@ -22,12 +22,18 @@
 
         <div class="user-section">
           <t-dropdown :options="userMenuOptions" @click="handleUserMenuClick">
-            <t-button theme="primary" variant="outline">
-              <template #icon>
-                <t-icon name="user" />
-              </template>
-              {{ userEmail }}
-            </t-button>
+            <div class="user-info-trigger">
+              <div class="user-avatar">
+                <img
+                  :src="userAvatarUrl"
+                  :alt="userEmail"
+                  class="avatar-image"
+                  @error="handleAvatarError"
+                />
+              </div>
+              <span class="user-email">{{ userEmail }}</span>
+              <t-icon name="chevron-down" class="dropdown-icon" />
+            </div>
           </t-dropdown>
         </div>
       </div>
@@ -184,7 +190,7 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useProgramStore, useCategoryStore } from "@/stores/counter";
-import { utils } from "@/services/api";
+import { utils, userApi } from "@/services/api";
 import ProgramCard from "@/components/ProgramCard.vue";
 import AudioPlayer from "@/components/AudioPlayer.vue";
 import ChatBot from "@/components/ChatBot.vue";
@@ -195,6 +201,7 @@ const programStore = useProgramStore();
 const categoryStore = useCategoryStore();
 
 const userEmail = ref("");
+const userAvatarUrl = ref("");
 const searchKeyword = ref("");
 const selectedCategoryId = ref<number | null>(null);
 const currentFeaturedIndex = ref(0);
@@ -231,6 +238,9 @@ onMounted(async () => {
 
   userEmail.value = email;
 
+  // 加载用户信息（包括头像）
+  await loadUserInfo();
+
   // 检查是否需要显示AI助手欢迎弹窗
   const shouldShowAIWelcome = localStorage.getItem("showAIWelcome");
   if (shouldShowAIWelcome === "true") {
@@ -249,6 +259,29 @@ onMounted(async () => {
 onUnmounted(() => {
   stopFeaturedCarousel();
 });
+
+// 加载用户信息
+const loadUserInfo = async () => {
+  try {
+    const response = await userApi.getUserInfo();
+    if (response.success && response.data) {
+      userAvatarUrl.value = utils.getAvatarUrl(response.data.avatar);
+    } else {
+      // 如果获取用户信息失败，使用默认头像
+      userAvatarUrl.value = utils.getAvatarUrl();
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+    // 使用默认头像
+    userAvatarUrl.value = utils.getAvatarUrl();
+  }
+};
+
+// 头像加载错误处理
+const handleAvatarError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  target.src = utils.getAvatarUrl();
+};
 
 // 加载初始数据
 const loadInitialData = async () => {
@@ -424,6 +457,62 @@ const handleStartChat = (question?: string) => {
 
 .user-section {
   flex-shrink: 0;
+}
+
+.user-info-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.user-info-trigger:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar {
+  flex-shrink: 0;
+}
+
+.avatar-image {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+  transition: border-color 0.3s ease;
+}
+
+.user-info-trigger:hover .avatar-image {
+  border-color: #3b82f6;
+}
+
+.user-email {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-icon {
+  color: #9ca3af;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.user-info-trigger:hover .dropdown-icon {
+  color: #3b82f6;
+  transform: rotate(180deg);
 }
 
 /* 主要内容样式 */
