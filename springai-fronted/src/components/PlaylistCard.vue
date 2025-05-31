@@ -3,63 +3,40 @@
     class="playlist-card animate__animated animate__fadeInUp"
     @click="handleCardClick"
   >
-    <div class="card-cover">
-      <div class="cover-grid">
-        <!-- 显示歌单内前4个节目的封面，如果不足则显示默认封面 -->
-        <div 
-          v-for="(cover, index) in displayCovers" 
-          :key="index"
-          class="cover-item"
+    <div class="card-header">
+      <div class="playlist-icon">
+        <t-icon name="queue-music" size="32px" />
+      </div>
+
+      <div class="header-actions">
+        <t-button
+          theme="primary"
+          shape="circle"
+          size="large"
+          @click.stop="handlePlayClick"
         >
-          <img 
-            :src="cover" 
-            :alt="`封面 ${index + 1}`"
-            @error="handleImageError"
-          />
-        </div>
-      </div>
-      
-      <div class="card-overlay">
-        <div class="play-button">
-          <t-button 
-            theme="primary" 
-            shape="circle" 
-            size="large"
-            @click.stop="handlePlayClick"
-          >
-            <template #icon>
-              <t-icon name="play" size="24px" />
-            </template>
-          </t-button>
-        </div>
-        
-        <div class="playlist-actions">
-          <t-button 
-            theme="primary" 
-            variant="text" 
+          <template #icon>
+            <t-icon name="play" size="20px" />
+          </template>
+        </t-button>
+
+        <t-dropdown
+          v-if="isOwner"
+          :options="actionOptions"
+          @click="handleActionClick"
+        >
+          <t-button
+            theme="default"
+            variant="text"
             size="small"
-            @click.stop="handleEditClick"
-            v-if="isOwner"
           >
             <template #icon>
-              <t-icon name="edit" />
+              <t-icon name="more" />
             </template>
           </t-button>
-          
-          <t-button 
-            theme="danger" 
-            variant="text" 
-            size="small"
-            @click.stop="handleDeleteClick"
-            v-if="isOwner"
-          >
-            <template #icon>
-              <t-icon name="delete" />
-            </template>
-          </t-button>
-        </div>
+        </t-dropdown>
       </div>
-      
+
       <div class="playlist-badge" v-if="!playlist.isPublic">
         <t-tag theme="warning" size="small">
           <template #icon>
@@ -83,7 +60,7 @@
         </div>
         <div class="meta-item">
           <t-icon name="time" size="14px" />
-          <span>{{ formatDate(playlist.updatedAt) }}</span>
+          <span>{{ formatDate(playlist.createdAt) }}</span>
         </div>
       </div>
       
@@ -129,32 +106,25 @@ const router = useRouter()
 const truncatedDescription = computed(() => {
   if (!props.playlist.description) return ''
   const maxLength = 60
-  return props.playlist.description.length > maxLength 
+  return props.playlist.description.length > maxLength
     ? props.playlist.description.substring(0, maxLength) + '...'
     : props.playlist.description
 })
 
-const displayCovers = computed(() => {
-  const covers = []
-  const defaultCover = '/default-cover.jpg'
-  
-  // 如果歌单有节目，使用节目封面
-  if (props.playlist.items && props.playlist.items.length > 0) {
-    for (let i = 0; i < 4; i++) {
-      if (i < props.playlist.items.length) {
-        covers.push(props.playlist.items[i].programCoverImageUrl || defaultCover)
-      } else {
-        covers.push(defaultCover)
-      }
+const actionOptions = computed(() => {
+  return [
+    {
+      content: '编辑歌单',
+      value: 'edit',
+      prefixIcon: 'edit'
+    },
+    {
+      content: '删除歌单',
+      value: 'delete',
+      prefixIcon: 'delete',
+      theme: 'error'
     }
-  } else {
-    // 没有节目时显示4个默认封面
-    for (let i = 0; i < 4; i++) {
-      covers.push(defaultCover)
-    }
-  }
-  
-  return covers
+  ]
 })
 
 // 事件处理
@@ -166,17 +136,12 @@ const handlePlayClick = () => {
   emit('play', props.playlist)
 }
 
-const handleEditClick = () => {
-  emit('edit', props.playlist)
-}
-
-const handleDeleteClick = () => {
-  emit('delete', props.playlist)
-}
-
-const handleImageError = (event: Event) => {
-  const target = event.target as HTMLImageElement
-  target.src = '/default-cover.jpg'
+const handleActionClick = (data: any) => {
+  if (data.value === 'edit') {
+    emit('edit', props.playlist)
+  } else if (data.value === 'delete') {
+    emit('delete', props.playlist)
+  }
 }
 
 // 工具函数
@@ -199,78 +164,42 @@ const formatDate = (dateString: string) => {
 }
 
 .playlist-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-.card-cover {
+.card-header {
   position: relative;
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.cover-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  width: 100%;
-  height: 100%;
-  gap: 1px;
-}
-
-.cover-item {
-  overflow: hidden;
-}
-
-.cover-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.playlist-card:hover .cover-item img {
-  transform: scale(1.05);
-}
-
-.card-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+.playlist-icon {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
 }
 
-.playlist-card:hover .card-overlay {
-  opacity: 1;
-}
-
-.play-button {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.playlist-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+.header-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .playlist-badge {
   position: absolute;
   top: 12px;
-  left: 12px;
+  right: 12px;
 }
 
 .card-content {
@@ -335,18 +264,23 @@ const formatDate = (dateString: string) => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .card-cover {
-    height: 160px;
+  .card-header {
+    padding: 16px;
   }
-  
+
+  .playlist-icon {
+    width: 48px;
+    height: 48px;
+  }
+
   .card-content {
     padding: 12px;
   }
-  
+
   .playlist-title {
     font-size: 14px;
   }
-  
+
   .playlist-description {
     font-size: 12px;
   }

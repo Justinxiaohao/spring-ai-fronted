@@ -227,6 +227,8 @@ const loadUserComments = async () => {
 
   try {
     console.log('正在加载用户评论...')
+    // 修复：使用正确的API调用，不需要传递userId参数
+    // 因为后端会根据User-Email头部自动识别用户
     const response = await userApi.getUserComments(
       pagination.value.current,
       pagination.value.size
@@ -234,13 +236,20 @@ const loadUserComments = async () => {
     console.log('用户评论响应:', response)
 
     if (response.success && response.data) {
-      comments.value = response.data.items || []
+      // 兼容不同的数据结构：后端可能返回items或records字段
+      comments.value = response.data.items || response.data.records || []
       pagination.value = {
-        current: response.data.page || 1,
-        size: response.data.limit || 10,
+        current: response.data.page || response.data.current || 1,
+        size: response.data.limit || response.data.size || 10,
         total: response.data.total || 0,
-        totalPages: response.data.totalPages || 0
+        totalPages: response.data.totalPages || response.data.pages || 0
       }
+
+      console.log('用户评论数据处理完成:', {
+        commentsCount: comments.value.length,
+        pagination: pagination.value,
+        dataSource: response.data.items ? 'items' : response.data.records ? 'records' : 'unknown'
+      })
 
       // 根据排序方式排序
       sortComments()

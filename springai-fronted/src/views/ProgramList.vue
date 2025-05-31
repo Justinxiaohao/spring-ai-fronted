@@ -185,23 +185,6 @@ const sortOptions = [
   { content: '最多评论', value: 'commentsCount_desc' },
   { content: '精选优先', value: 'isFeatured_desc_createdAt_desc' }
 ]
-
-const currentSortLabel = computed(() => {
-  const option = sortOptions.find(opt => opt.value === currentSort.value)
-  return option ? option.content : '排序'
-})
-
-// 监听路由变化
-watch(() => route.query, () => {
-  loadPrograms()
-}, { immediate: true })
-
-// 初始化
-onMounted(async () => {
-  await categoryStore.fetchCategories()
-  loadPrograms()
-})
-
 // 加载节目列表
 const loadPrograms = async () => {
   const type = route.query.type as string
@@ -223,6 +206,22 @@ const loadPrograms = async () => {
       params.sortBy = 'createdAt_desc'
       break
   }
+
+const currentSortLabel = computed(() => {
+  const option = sortOptions.find(opt => opt.value === currentSort.value)
+  return option ? option.content : '排序'
+})
+
+// 监听路由变化
+watch(() => route.query, () => {
+  loadPrograms()
+}, { immediate: true })
+
+// 初始化
+onMounted(async () => {
+  await categoryStore.fetchCategories()
+  loadPrograms()
+})
 
   // 应用筛选条件
   if (selectedCategoryId.value) {

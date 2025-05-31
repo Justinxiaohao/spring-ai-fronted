@@ -29,47 +29,19 @@
     <div v-else-if="playlist" class="detail-content">
       <!-- 头部信息 -->
       <header class="playlist-header">
-        <div class="header-background">
-          <div class="background-covers">
-            <img 
-              v-for="(cover, index) in backgroundCovers" 
-              :key="index"
-              :src="cover" 
-              :alt="`背景 ${index + 1}`"
-              class="background-image"
-            />
-          </div>
-          <div class="background-overlay"></div>
-        </div>
-        
         <div class="header-content">
-          <div class="playlist-cover">
-            <div class="cover-grid">
-              <div 
-                v-for="(cover, index) in displayCovers" 
-                :key="index"
-                class="cover-item"
-              >
-                <img 
-                  :src="cover" 
-                  :alt="`封面 ${index + 1}`"
-                  @error="handleImageError"
-                />
-              </div>
-            </div>
-            <div class="play-button-overlay">
-              <t-button
-                theme="primary"
-                size="large"
-                shape="circle"
-                @click="handlePlayAll"
-                :disabled="!playlist.items || playlist.items.length === 0"
-              >
-                <template #icon>
-                  <t-icon name="play" size="32px" />
-                </template>
-              </t-button>
-            </div>
+          <div class="playlist-icon">
+            <t-button
+              theme="primary"
+              size="large"
+              shape="circle"
+              @click="handlePlayAll"
+              :disabled="!playlist.items || playlist.items.length === 0"
+            >
+              <template #icon>
+                <t-icon name="play" size="32px" />
+              </template>
+            </t-button>
           </div>
           
           <div class="playlist-info">
@@ -95,7 +67,7 @@
               </div>
               <div class="meta-item">
                 <t-icon name="calendar" />
-                <span>{{ formatDate(playlist.updatedAt) }}</span>
+                <span>创建于 {{ formatDate(playlist.createdAt) }}</span>
               </div>
             </div>
             
@@ -177,29 +149,22 @@
               :class="{ 'playing': isCurrentProgram(item.programId) }"
             >
               <div class="item-index">{{ index + 1 }}</div>
-              
-              <div class="item-cover">
-                <img 
-                  :src="item.programCoverImageUrl" 
-                  :alt="item.programTitle"
-                  @error="handleImageError"
-                />
-                <div class="item-play-overlay">
-                  <t-button 
-                    theme="primary" 
-                    shape="circle"
-                    size="small"
-                    @click="playProgram(item)"
-                  >
-                    <template #icon>
-                      <t-icon 
-                        :name="isCurrentProgram(item.programId) && playerState.isPlaying ? 'pause' : 'play'" 
-                      />
-                    </template>
-                  </t-button>
-                </div>
+
+              <div class="item-play-button">
+                <t-button
+                  theme="primary"
+                  shape="circle"
+                  size="small"
+                  @click="playProgram(item)"
+                >
+                  <template #icon>
+                    <t-icon
+                      :name="isCurrentProgram(item.programId) && playerState.isPlaying ? 'pause' : 'play'"
+                    />
+                  </template>
+                </t-button>
               </div>
-              
+
               <div class="item-info">
                 <h3 class="item-title">{{ item.programTitle }}</h3>
                 <p class="item-artist">{{ item.programArtistNarrator }}</p>
@@ -222,6 +187,20 @@
                 </t-button>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 评论区域 -->
+      <section class="comments-section" v-if="playlist && playlist.items && playlist.items.length > 0">
+        <div class="content-container">
+          <h2 class="section-title">歌单评论</h2>
+          <div v-if="currentPlayingProgram">
+            <h3 class="current-program-title">正在播放：{{ currentPlayingProgram.title }}</h3>
+            <CommentList :program-id="currentPlayingProgram.id" />
+          </div>
+          <div v-else class="no-playing-hint">
+            <t-alert theme="info" message="请先播放歌单中的节目，然后可以对该节目进行评论" />
           </div>
         </div>
       </section>
@@ -286,40 +265,54 @@
       :footer="false"
     >
       <div class="add-program-content">
-        <t-input
-          v-model="searchKeyword"
-          placeholder="搜索节目..."
-          clearable
-          @enter="searchPrograms"
-        >
-          <template #prefix-icon>
-            <t-icon name="search" />
-          </template>
-        </t-input>
-        
-        <div class="search-results" v-if="searchResults.length > 0">
-          <div 
-            v-for="program in searchResults"
-            :key="program.id"
-            class="search-result-item"
+        <div class="search-input-group">
+          <t-input
+            v-model="searchKeyword"
+            placeholder="搜索节目..."
+            clearable
+            @enter="searchPrograms"
           >
-            <img 
-              :src="program.coverImageUrl" 
-              :alt="program.title"
-              class="result-cover"
-            />
-            <div class="result-info">
-              <h4>{{ program.title }}</h4>
-              <p>{{ program.artistNarrator }}</p>
-            </div>
-            <t-button 
-              theme="primary" 
-              size="small"
-              @click="addProgramToPlaylist(program.id)"
-              :loading="adding"
+            <template #prefix-icon>
+              <t-icon name="search" />
+            </template>
+          </t-input>
+          <t-button
+            theme="primary"
+            @click="searchPrograms"
+            :disabled="!searchKeyword.trim()"
+          >
+            搜索
+          </t-button>
+        </div>
+        
+        <!-- 搜索结果 -->
+        <div class="search-results" v-if="searchKeyword.trim()">
+          <div v-if="searchResults.length > 0">
+            <div
+              v-for="program in searchResults"
+              :key="program.id"
+              class="search-result-item"
             >
-              添加
-            </t-button>
+              <div class="result-info">
+                <h4>{{ program.title }}</h4>
+                <p>{{ program.artistNarrator }}</p>
+              </div>
+              <t-button
+                theme="primary"
+                size="small"
+                @click="addProgramToPlaylist(program.id)"
+                :loading="adding"
+              >
+                添加
+              </t-button>
+            </div>
+          </div>
+          <div v-else class="no-results">
+            <t-result
+              theme="default"
+              title="没有找到相关节目"
+              description="请尝试其他关键词"
+            />
           </div>
         </div>
       </div>
@@ -334,16 +327,16 @@
 import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { usePlaylistStore, usePlayerStore, useProgramStore } from '@/stores/counter'
-import { utils } from '@/services/api'
+import { usePlaylistStore, usePlayerStore } from '@/stores/counter'
+import { utils, searchApi } from '@/services/api'
 import type { Playlist, PlaylistItem, Program } from '@/types'
 import AudioPlayer from '@/components/AudioPlayer.vue'
+import CommentList from '@/components/CommentList.vue'
 
 const route = useRoute()
 const router = useRouter()
 const playlistStore = usePlaylistStore()
 const playerStore = usePlayerStore()
-const programStore = useProgramStore()
 
 const playlist = ref<Playlist | null>(null)
 const loading = ref(false)
@@ -384,53 +377,15 @@ const isOwner = computed(() => {
   return true
 })
 
-const displayCovers = computed(() => {
-  const covers = []
-  const defaultCover = '/default-cover.jpg'
-  
-  if (playlist.value?.items && playlist.value.items.length > 0) {
-    for (let i = 0; i < 4; i++) {
-      if (i < playlist.value.items.length) {
-        covers.push(playlist.value.items[i].programCoverImageUrl || defaultCover)
-      } else {
-        covers.push(defaultCover)
-      }
-    }
-  } else {
-    for (let i = 0; i < 4; i++) {
-      covers.push(defaultCover)
-    }
-  }
-  
-  return covers
-})
 
-const backgroundCovers = computed(() => {
-  return displayCovers.value.slice(0, 3)
-})
 
 const totalDuration = computed(() => {
   if (!playlist.value?.items) return 0
   return playlist.value.items.reduce((sum, item) => sum + item.programDurationSeconds, 0)
 })
 
-// 监听路由变化
-watch(() => route.params.id, (newId) => {
-  if (newId) {
-    loadPlaylistDetail()
-  }
-}, { immediate: true })
-
-// 监听自动播放参数
-watch(() => route.query.autoplay, (autoplay) => {
-  if (autoplay === 'true' && playlist.value?.items && playlist.value.items.length > 0) {
-    playProgram(playlist.value.items[0])
-  }
-})
-
-// 初始化
-onMounted(() => {
-  loadPlaylistDetail()
+const currentPlayingProgram = computed(() => {
+  return playerState.value.currentProgram
 })
 
 // 加载歌单详情
@@ -459,11 +414,27 @@ const loadPlaylistDetail = async () => {
   }
 }
 
+// 监听路由变化
+watch(() => route.params.id, (newId) => {
+  if (newId) {
+    loadPlaylistDetail()
+  }
+}, { immediate: true })
+
+// 监听自动播放参数
+watch(() => route.query.autoplay, (autoplay) => {
+  if (autoplay === 'true' && playlist.value?.items && playlist.value.items.length > 0) {
+    playProgram(playlist.value.items[0])
+  }
+})
+
+// 初始化
+onMounted(() => {
+  loadPlaylistDetail()
+})
+
+
 // 事件处理
-const handleImageError = (event: Event) => {
-  const target = event.target as HTMLImageElement
-  target.src = '/default-cover.jpg'
-}
 
 const isCurrentProgram = (programId: number) => {
   return playerState.value.currentProgram?.id === programId
@@ -572,13 +543,26 @@ const searchPrograms = async () => {
   if (!searchKeyword.value.trim()) return
 
   try {
-    await programStore.fetchPrograms({
-      tag: searchKeyword.value.trim(),
+    console.log('开始搜索节目:', searchKeyword.value.trim())
+
+    // 使用搜索API
+    const response = await searchApi.searchPrograms({
+      q: searchKeyword.value.trim(),  // 使用 q 参数进行搜索
       limit: 10
     })
-    searchResults.value = programStore.programs
+
+    console.log('搜索API响应:', response)
+
+    if (response.success && response.data) {
+      searchResults.value = response.data.records || []
+      console.log('搜索结果:', searchResults.value.length, '个节目')
+    } else {
+      searchResults.value = []
+      console.warn('搜索失败或无结果:', response.message)
+    }
   } catch (error) {
     console.error('搜索节目失败:', error)
+    searchResults.value = []
   }
 }
 
@@ -634,88 +618,30 @@ watch(() => playlist.value, (newPlaylist) => {
 
 /* 头部样式 */
 .playlist-header {
-  position: relative;
-  height: 400px;
-  overflow: hidden;
-}
-
-.header-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-.background-covers {
-  display: flex;
-  width: 100%;
-  height: 100%;
-}
-
-.background-image {
-  flex: 1;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(20px);
-  transform: scale(1.1);
-}
-
-.background-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 48px 0;
+  color: white;
 }
 
 .header-content {
-  position: relative;
-  z-index: 10;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 0 24px;
   display: flex;
   gap: 32px;
-  align-items: flex-end;
-  height: 100%;
+  align-items: center;
 }
 
-.playlist-cover {
-  position: relative;
+.playlist-icon {
   flex-shrink: 0;
-}
-
-.cover-grid {
-  width: 240px;
-  height: 240px;
-  border-radius: 16px;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 2px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-}
-
-.cover-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.play-button-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.playlist-cover:hover .play-button-overlay {
-  opacity: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
 }
 
 .playlist-info {
@@ -826,37 +752,11 @@ watch(() => playlist.value, (newPlaylist) => {
   font-weight: 600;
 }
 
-.item-cover {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  overflow: hidden;
+.item-play-button {
   flex-shrink: 0;
-}
-
-.item-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.item-play-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.program-item:hover .item-play-overlay {
-  opacity: 1;
 }
 
 .item-info {
@@ -912,10 +812,25 @@ watch(() => playlist.value, (newPlaylist) => {
   padding: 16px 0;
 }
 
+.search-input-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-input-group .t-input {
+  flex: 1;
+}
+
 .search-results {
   margin-top: 16px;
   max-height: 400px;
   overflow-y: auto;
+}
+
+.no-results {
+  padding: 40px 20px;
+  text-align: center;
 }
 
 .search-result-item {
@@ -929,13 +844,6 @@ watch(() => playlist.value, (newPlaylist) => {
 
 .search-result-item:hover {
   background: #f8fafc;
-}
-
-.result-cover {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  object-fit: cover;
 }
 
 .result-info {
@@ -956,23 +864,41 @@ watch(() => playlist.value, (newPlaylist) => {
   margin: 0;
 }
 
+/* 评论区域样式 */
+.comments-section {
+  padding: 48px 0;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.current-program-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+}
+
+.no-playing-hint {
+  margin-top: 16px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .playlist-header {
-    height: 300px;
+    padding: 32px 0;
   }
 
   .header-content {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 20px;
+    padding: 0 20px;
     gap: 20px;
   }
 
-  .cover-grid {
-    width: 180px;
-    height: 180px;
+  .playlist-icon {
+    width: 80px;
+    height: 80px;
   }
 
   .playlist-title {
@@ -1001,11 +927,6 @@ watch(() => playlist.value, (newPlaylist) => {
   .program-item {
     padding: 8px 12px;
     gap: 12px;
-  }
-
-  .item-cover {
-    width: 40px;
-    height: 40px;
   }
 }
 </style>

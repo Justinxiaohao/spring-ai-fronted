@@ -166,6 +166,7 @@ export interface Comment {
   userId: number
   userName: string
   userEmail?: string
+  userAvatar?: string
   programId: number
   programTitle?: string
   parentCommentId: number | null

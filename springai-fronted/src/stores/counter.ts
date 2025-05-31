@@ -466,24 +466,79 @@ export const useCommentStore = defineStore('comment', () => {
     error.value = null
 
     try {
+      console.log('正在获取评论列表:', { programId, page, limit })
+
+      // 如果是第一页，先清空当前评论列表
+      if (page === 1) {
+        currentProgramComments.value = []
+      }
+
       const response = await commentApi.getProgramComments(programId, { page, limit })
-      if (response.success) {
-        currentProgramComments.value = response.data.items
+      console.log('评论API响应:', response)
+
+      if (response.success && response.data) {
+        // 兼容不同的数据结构：后端可能返回items或records字段
+        const rawItems = Array.isArray(response.data.items)
+          ? response.data.items
+          : Array.isArray(response.data.records)
+            ? response.data.records
+            : []
+        console.log('原始评论数据:', rawItems)
+        console.log('数据来源字段:', response.data.items ? 'items' : response.data.records ? 'records' : 'unknown')
+
+        // 清理和标准化评论数据
+        const cleanedItems = rawItems.map(item => ({
+          ...item,
+          createdAt: item.createdAt || new Date().toISOString(),
+          userAvatar: item.userAvatar || item.avatar || '', // 兼容不同的头像字段名
+          replies: [],
+          replyCount: item.replyCount || 0
+        }))
+        console.log('清理后的评论数据:', cleanedItems)
+
+        // 先设置评论数据
+        currentProgramComments.value = cleanedItems
+
+        // 兼容不同的分页字段名
         pagination.value = {
-          current: response.data.page,
-          size: response.data.limit,
-          total: response.data.total,
-          totalPages: response.data.totalPages
+          current: response.data.page || response.data.current || page,
+          size: response.data.limit || response.data.size || limit,
+          total: response.data.total || 0,
+          totalPages: response.data.totalPages || response.data.pages || Math.ceil((response.data.total || 0) / limit)
         }
 
-        // 为每个顶级评论加载回复
-        await loadRepliesForComments(response.data.items)
+        console.log('评论数据已更新:', {
+          commentsCount: cleanedItems.length,
+          pagination: pagination.value
+        })
+
+        // 为每个顶级评论加载回复（只有当有评论时才调用）
+        if (cleanedItems.length > 0) {
+          await loadRepliesForComments(currentProgramComments.value)
+        }
       } else {
-        error.value = response.message || '获取评论失败'
+        // API 调用失败或没有数据时，设置空数组
+        console.warn('获取评论失败或无数据:', response)
+        currentProgramComments.value = []
+        pagination.value = {
+          current: page,
+          size: limit,
+          total: 0,
+          totalPages: 0
+        }
+        error.value = response?.message || '获取评论失败'
       }
     } catch (err) {
+      console.error('获取评论失败:', err)
       error.value = '获取评论失败'
-      console.error(err)
+      // 确保在错误情况下也有安全的状态
+      currentProgramComments.value = []
+      pagination.value = {
+        current: page,
+        size: limit,
+        total: 0,
+        totalPages: 0
+      }
     } finally {
       loading.value = false
     }
@@ -491,31 +546,63 @@ export const useCommentStore = defineStore('comment', () => {
 
   // 为评论加载回复
   const loadRepliesForComments = async (commentList: Comment[]) => {
-    const topLevelComments = commentList.filter(comment => !comment.parentCommentId)
+    // 添加空值检查
+    if (!commentList || !Array.isArray(commentList) || commentList.length === 0) {
+      console.log('评论列表为空或无效，跳过加载回复')
+      return
+    }
 
-    for (const comment of topLevelComments) {
-      if (comment.replyCount && comment.replyCount > 0) {
-        try {
-          const response = await commentApi.getCommentReplies(comment.id)
-          if (response.success) {
-            comment.replies = response.data
+    try {
+      const topLevelComments = commentList.filter(comment => comment && !comment.parentCommentId)
+      console.log('顶级评论数量:', topLevelComments.length)
+
+      for (const comment of topLevelComments) {
+        if (comment && comment.replyCount && comment.replyCount > 0) {
+          try {
+            console.log(`加载评论 ${comment.id} 的回复，回复数量: ${comment.replyCount}`)
+            const response = await commentApi.getCommentReplies(comment.id)
+            if (response.success && response.data) {
+              // 确保回复数据是数组
+              comment.replies = Array.isArray(response.data) ? response.data : []
+              console.log(`评论 ${comment.id} 的回复加载完成，实际回复数量: ${comment.replies.length}`)
+            } else {
+              comment.replies = []
+              console.log(`评论 ${comment.id} 的回复加载失败:`, response)
+            }
+          } catch (err) {
+            console.error(`加载评论 ${comment.id} 的回复失败:`, err)
+            comment.replies = []
           }
-        } catch (err) {
-          console.error('加载回复失败:', err)
+        } else {
+          // 确保没有回复的评论也有空的回复数组
+          comment.replies = []
         }
       }
+      console.log('所有回复加载完成')
+    } catch (err) {
+      console.error('加载回复过程中发生错误:', err)
     }
   }
 
   // 发表评论
   const createComment = async (programId: number, content: string, parentCommentId?: number) => {
     submitting.value = true
+    error.value = null
 
     try {
+      console.log('评论store: 正在发表评论', { programId, content, parentCommentId })
+
+      // 验证参数
+      if (!programId || !content.trim()) {
+        throw new Error('参数无效：节目ID或评论内容为空')
+      }
+
       const response = await commentApi.createComment(programId, {
-        content,
+        content: content.trim(),
         parentCommentId: parentCommentId || null
       })
+
+      console.log('评论store: 评论API响应', response)
 
       if (response.success) {
         const newComment = response.data
@@ -527,22 +614,54 @@ export const useCommentStore = defineStore('comment', () => {
             if (!parentComment.replies) {
               parentComment.replies = []
             }
-            parentComment.replies.push(newComment)
+            // 确保新评论有正确的数据结构
+            const safeNewComment = {
+              ...newComment,
+              createdAt: newComment.createdAt || new Date().toISOString(),
+              userAvatar: newComment.userAvatar || newComment.avatar || '',
+              replies: []
+            }
+            parentComment.replies.push(safeNewComment)
             parentComment.replyCount = (parentComment.replyCount || 0) + 1
           }
         } else {
           // 如果是顶级评论，添加到评论列表开头
-          currentProgramComments.value.unshift(newComment)
+          // 确保新评论有正确的数据结构
+          const safeNewComment = {
+            ...newComment,
+            createdAt: newComment.createdAt || new Date().toISOString(),
+            userAvatar: newComment.userAvatar || newComment.avatar || '',
+            replies: [],
+            replyCount: 0
+          }
+
+          // 确保 currentProgramComments 是响应式数组
+          if (!Array.isArray(currentProgramComments.value)) {
+            currentProgramComments.value = []
+          }
+
+          // 添加到列表开头
+          currentProgramComments.value.unshift(safeNewComment)
           pagination.value.total += 1
+
+          console.log('新评论已添加到列表:', {
+            newCommentId: safeNewComment.id,
+            totalComments: currentProgramComments.value.length,
+            totalCount: pagination.value.total
+          })
         }
 
         return newComment
       } else {
-        throw new Error(response.message || '发表评论失败')
+        const errorMsg = response.message || '发表评论失败'
+        error.value = errorMsg
+        throw new Error(errorMsg)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('发表评论失败:', err)
-      throw err
+      const errorMsg = err.message || '发表评论失败'
+      error.value = errorMsg
+      throw new Error(errorMsg)
     } finally {
       submitting.value = false
     }
@@ -594,11 +713,15 @@ export const useCommentStore = defineStore('comment', () => {
 
   // 辅助函数：根据ID查找评论
   const findCommentById = (commentList: Comment[], commentId: number): Comment | null => {
+    if (!commentList || !Array.isArray(commentList)) {
+      return null
+    }
+
     for (const comment of commentList) {
-      if (comment.id === commentId) {
+      if (comment && comment.id === commentId) {
         return comment
       }
-      if (comment.replies) {
+      if (comment && comment.replies && Array.isArray(comment.replies)) {
         const found = findCommentById(comment.replies, commentId)
         if (found) return found
       }
@@ -608,12 +731,16 @@ export const useCommentStore = defineStore('comment', () => {
 
   // 辅助函数：从列表中移除评论
   const removeCommentFromList = (commentList: Comment[], commentId: number): boolean => {
+    if (!commentList || !Array.isArray(commentList)) {
+      return false
+    }
+
     for (let i = 0; i < commentList.length; i++) {
-      if (commentList[i].id === commentId) {
+      if (commentList[i] && commentList[i].id === commentId) {
         commentList.splice(i, 1)
         return true
       }
-      if (commentList[i].replies) {
+      if (commentList[i] && commentList[i].replies && Array.isArray(commentList[i].replies)) {
         if (removeCommentFromList(commentList[i].replies!, commentId)) {
           commentList[i].replyCount = Math.max(0, (commentList[i].replyCount || 0) - 1)
           return true
@@ -633,6 +760,27 @@ export const useCommentStore = defineStore('comment', () => {
       totalPages: 0
     }
   }
+
+  // 确保状态初始化安全
+  const ensureSafeState = () => {
+    if (!Array.isArray(currentProgramComments.value)) {
+      currentProgramComments.value = []
+    }
+    if (!Array.isArray(userComments.value)) {
+      userComments.value = []
+    }
+    if (!pagination.value || typeof pagination.value !== 'object') {
+      pagination.value = {
+        current: 1,
+        size: 10,
+        total: 0,
+        totalPages: 0
+      }
+    }
+  }
+
+  // 在store创建时确保状态安全
+  ensureSafeState()
 
   return {
     comments: computed(() => comments.value),

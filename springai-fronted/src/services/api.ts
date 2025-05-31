@@ -285,7 +285,11 @@ export const commentApi = {
     return request<Comment[]>(`/api/comments/${commentId}/replies`)
   },
 
-
+  // 获取用户评论列表
+  async getUserComments(userId: number, params: CommentQueryParams = {}): Promise<ApiResponse<CommentListResponse>> {
+    const { page = 1, limit = 10 } = params
+    return request<CommentListResponse>(`/api/users/${userId}/comments?page=${page}&limit=${limit}`)
+  },
 
   // 获取评论详情
   async getCommentDetail(commentId: number): Promise<ApiResponse<Comment>> {
@@ -365,30 +369,121 @@ export const utils = {
   },
 
   // 格式化日期
-  formatDate(dateString: string): string {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+  formatDate(dateString: string | number | null | undefined): string {
+    if (!dateString || dateString === null || dateString === undefined) {
+      return '未知时间'
+    }
+
+    try {
+      // 处理多种日期格式
+      let date: Date
+
+      // 如果是数字（时间戳）
+      if (typeof dateString === 'number') {
+        // 如果是秒级时间戳，转换为毫秒
+        date = new Date(dateString < 10000000000 ? dateString * 1000 : dateString)
+      }
+      // 如果是数字字符串（时间戳）
+      else if (typeof dateString === 'string' && /^\d+$/.test(dateString)) {
+        const timestamp = parseInt(dateString)
+        // 如果是秒级时间戳，转换为毫秒
+        date = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp)
+      } else {
+        // 标准化日期字符串格式
+        const normalizedDateString = String(dateString).replace(/\s+/g, ' ').trim()
+        date = new Date(normalizedDateString)
+      }
+
+      // 检查日期是否有效
+      if (isNaN(date.getTime())) {
+        console.warn('无效的日期字符串:', dateString)
+        return '时间格式错误'
+      }
+
+      const now = new Date()
+      const diffTime = now.getTime() - date.getTime()
+      const diffMinutes = Math.floor(diffTime / (1000 * 60))
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+      // 如果是未来时间，显示具体日期
+      if (diffTime < 0) {
+        return date.toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }
+
+      // 如果是1分钟内
+      if (diffMinutes < 1) {
+        return '刚刚'
+      }
+      // 如果是1小时内
+      else if (diffMinutes < 60) {
+        return `${diffMinutes}分钟前`
+      }
+      // 如果是今天
+      else if (diffHours < 24 && date.getDate() === now.getDate()) {
+        return `${diffHours}小时前`
+      }
+      // 如果是昨天
+      else if (diffDays === 1) {
+        return '昨天'
+      }
+      // 如果是一周内
+      else if (diffDays < 7) {
+        return `${diffDays}天前`
+      }
+      // 如果是今年
+      else if (date.getFullYear() === now.getFullYear()) {
+        return date.toLocaleDateString('zh-CN', {
+          month: 'long',
+          day: 'numeric'
+        })
+      }
+      // 其他情况显示完整日期
+      else {
+        return date.toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      }
+    } catch (error) {
+      console.error('日期格式化错误:', error, '原始字符串:', dateString)
+      return '时间解析失败'
+    }
   },
 
   // 获取正确的头像URL
   getAvatarUrl(avatar?: string): string {
-    if (!avatar) {
-      return '/default-avatar.jpg'
+    // 如果没有头像，返回默认头像
+    if (!avatar || avatar.trim() === '') {
+      // 使用一个通用的默认头像URL，或者base64编码的默认图片
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNGM0Y0RjYiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIxNiIgcj0iNiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMzAgMzJDMzAgMjYuNDc3MSAyNS41MjI5IDIyIDIwIDIyQzE0LjQ3NzEgMjIgMTAgMjYuNDc3MSAxMCAzMiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
     }
 
-    // 如果已经是完整URL，直接返回
-    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    // 如果已经是完整URL（包括data URL），直接返回
+    if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:')) {
       return avatar
     }
 
     // 如果是相对路径，拼接后端服务器地址
-    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
-    const cleanAvatar = avatar.startsWith('/') ? avatar : `/${avatar}`
+    try {
+      const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+      const cleanAvatar = avatar.startsWith('/') ? avatar : `/${avatar}`
+      const fullUrl = `${baseUrl}${cleanAvatar}`
 
-    return `${baseUrl}${cleanAvatar}`
+      // 验证URL格式
+      new URL(fullUrl)
+      return fullUrl
+    } catch (error) {
+      console.warn('头像URL格式错误:', avatar, error)
+      // 如果URL构建失败，返回默认头像
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNGM0Y0RjYiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIxNiIgcj0iNiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNMzAgMzJDMzAgMjYuNDc3MSAyNS41MjI5IDIyIDIwIDIyQzE0LjQ3NzEgMjIgMTAgMjYuNDc3MSAxMCAzMiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
+    }
   }
 }

@@ -155,7 +155,8 @@ const actionOptions = computed(() => {
 // 事件处理
 const handleAvatarError = (event: Event) => {
   const target = event.target as HTMLImageElement
-  target.src = '/default-avatar.jpg'
+  // 使用工具函数获取默认头像
+  target.src = utils.getAvatarUrl()
 }
 
 const handleActionClick = (data: any) => {

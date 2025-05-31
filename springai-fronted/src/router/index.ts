@@ -113,6 +113,15 @@ const router = createRouter({
         title: 'API调试',
         requiresAuth: false
       }
+    },
+    {
+      path: '/test',
+      name: 'Test',
+      component: () => import('../views/TestPage.vue'),
+      meta: {
+        title: '功能测试',
+        requiresAuth: true
+      }
     }
   ]
 })

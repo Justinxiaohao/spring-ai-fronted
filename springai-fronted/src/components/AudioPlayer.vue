@@ -274,7 +274,7 @@ const formatTime = (seconds: number) => {
   right: 0;
   background: white;
   border-top: 1px solid #e5e7eb;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   transition: all 0.3s ease;
 }
@@ -306,6 +306,7 @@ const formatTime = (seconds: number) => {
   height: 48px;
   border-radius: 8px;
   object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .info-text {
@@ -320,6 +321,7 @@ const formatTime = (seconds: number) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 2px;
 }
 
 .artist {
@@ -341,14 +343,16 @@ const formatTime = (seconds: number) => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: white;
 }
 
 .player-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid #e5e7eb;
+  background: white;
 }
 
 .header-title {
@@ -364,11 +368,15 @@ const formatTime = (seconds: number) => {
   padding: 24px;
   gap: 24px;
   overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
 }
 
 .cover-section {
   display: flex;
   justify-content: center;
+  margin-bottom: 16px;
 }
 
 .cover-large {
@@ -377,10 +385,16 @@ const formatTime = (seconds: number) => {
   border-radius: 16px;
   object-fit: cover;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: white;
 }
 
 .info-section {
   text-align: center;
+  max-width: 400px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .program-title {
@@ -388,6 +402,7 @@ const formatTime = (seconds: number) => {
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 8px 0;
+  line-height: 1.2;
 }
 
 .program-artist {
@@ -406,6 +421,12 @@ const formatTime = (seconds: number) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  max-width: 500px;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .time-display {
@@ -413,6 +434,7 @@ const formatTime = (seconds: number) => {
   justify-content: space-between;
   font-size: 12px;
   color: #6b7280;
+  font-weight: 500;
 }
 
 .progress-slider {
@@ -424,14 +446,23 @@ const formatTime = (seconds: number) => {
   justify-content: center;
   align-items: center;
   gap: 24px;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .volume-section {
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 200px;
-  margin: 0 auto;
+  max-width: 300px;
+  width: 100%;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: #6b7280;
 }
 
 .volume-slider {
@@ -440,17 +471,61 @@ const formatTime = (seconds: number) => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .mini-player {
+    padding: 10px 12px;
+    height: 64px;
+  }
+
+  .cover-mini {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+  }
+
+  .title {
+    font-size: 13px;
+  }
+
+  .artist {
+    font-size: 11px;
+  }
+
+  .player-content {
+    padding: 16px 12px;
+    gap: 16px;
+  }
+
   .cover-large {
     width: 240px;
     height: 240px;
+    border-radius: 12px;
   }
-  
+
+  .info-section {
+    padding: 16px;
+  }
+
   .program-title {
     font-size: 20px;
   }
-  
+
+  .program-artist {
+    font-size: 14px;
+  }
+
   .controls-section {
     gap: 16px;
+    padding: 12px;
+  }
+
+  .progress-section {
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  .volume-section {
+    max-width: 100%;
+    padding: 12px;
   }
 }
 </style>
