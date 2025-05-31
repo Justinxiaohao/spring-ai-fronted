@@ -1,7 +1,7 @@
 <template>
   <t-dialog
     v-model:visible="visible"
-    header="🎉 欢迎使用AI智能助手"
+    header="🎉 欢迎使用AI智能心理助手"
     width="500px"
     :close-on-overlay-click="true"
     :show-overlay="true"
@@ -12,14 +12,14 @@
         <t-icon name="chat" size="60px" />
       </div>
       
-      <h3 class="welcome-title">您的专属AI助手已就绪！</h3>
+      <h3 class="welcome-title">您的专属AI心理助手已就绪！</h3>
       
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon">🎵</div>
           <div class="feature-text">
             <h4>智能推荐</h4>
-            <p>根据您的喜好推荐精彩节目</p>
+            <p>根据您的喜好推荐精彩电台</p>
           </div>
         </div>
         
@@ -43,7 +43,7 @@
           <div class="feature-icon">🔍</div>
           <div class="feature-text">
             <h4>内容搜索</h4>
-            <p>帮您快速找到想要的节目内容</p>
+            <p>帮您快速找到想要的电台内容</p>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
       <div class="usage-tip">
         <div class="tip-icon">💡</div>
         <div class="tip-text">
-          <strong>使用提示：</strong>点击右下角的AI助手按钮即可开始对话，支持语音输入和文字交流！
+          <strong>使用提示：</strong>点击右下角的AI助手按钮即可开始对话，与AI助手进行文字交流！
         </div>
       </div>
       
@@ -105,9 +105,9 @@ const visible = ref(props.modelValue)
 
 // 快速问题
 const quickQuestions = ref([
-  '推荐一些好听的节目',
-  '如何使用这个平台？',
-  '有什么新的节目吗？'
+  '推荐一些好听的电台节目',
+  '如何使用这个心里电台？',
+  '有什么新的电台节目吗？'
 ])
 
 // 监听props变化

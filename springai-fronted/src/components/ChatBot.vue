@@ -27,7 +27,7 @@
             <div class="ai-name">AI智能助手</div>
             <div class="ai-status">
               <div class="status-dot"></div>
-              <span>在线服务</span>
+              <span>在线中.......</span>
             </div>
           </div>
         </div>
@@ -52,9 +52,9 @@
           <h3>👋 您好！我是AI智能助手</h3>
           <p>我可以帮您：</p>
           <div class="feature-list">
-            <div class="feature-item">🎵 推荐精彩节目</div>
-            <div class="feature-item">❓ 回答相关问题</div>
-            <div class="feature-item">💬 进行智能对话</div>
+            <div class="feature-item">🎵 推荐精彩电台目</div>
+            <div class="feature-item">❓ 回答相关心理问题</div>
+            <div class="feature-item">💬 进行智能交互对话</div>
           </div>
           <div class="quick-questions">
             <div class="quick-title">快速开始：</div>
@@ -159,9 +159,9 @@ const messagesContainer = ref<HTMLElement>()
 
 // 快速问题
 const quickQuestions = ref([
-  '推荐一些好听的节目',
-  '如何使用这个平台？',
-  '有什么新的节目吗？'
+  '推荐一些好听的电台节目',
+  '如何使用这个心理电台？',
+  '有什么新的电台节目吗？'
 ])
 
 // 生成聊天会话ID

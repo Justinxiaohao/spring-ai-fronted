@@ -106,17 +106,6 @@
             </div>
             <t-icon name="chevron-right" class="menu-arrow" />
           </div>
-
-          <div class="menu-item" @click="goToPlayHistory">
-            <div class="menu-icon">
-              <t-icon name="time" size="24px" />
-            </div>
-            <div class="menu-content">
-              <h3 class="menu-title">播放历史</h3>
-              <p class="menu-desc">查看播放记录</p>
-            </div>
-            <t-icon name="chevron-right" class="menu-arrow" />
-          </div>
         
           <div class="menu-item" @click="logout">
             <div class="menu-icon">
@@ -432,11 +421,6 @@ const goToLikedPrograms = () => {
 const goToComments = () => {
   router.push('/user/comments')
 }
-
-const goToPlayHistory = () => {
-  router.push('/user/history')
-}
-
 
 const logout = () => {
   localStorage.removeItem('userEmail')
