@@ -60,7 +60,11 @@
         </div>
         <div class="meta-item">
           <t-icon name="time" size="14px" />
-          <span>{{ formatDate(playlist.createdAt) }}</span>
+          <span>{{ formatDate(playlist.updatedAt) }}</span>
+        </div>
+        <div v-if="playlist.userName" class="meta-item">
+          <t-icon name="user" size="14px" />
+          <span>{{ playlist.userName }}</span>
         </div>
       </div>
       

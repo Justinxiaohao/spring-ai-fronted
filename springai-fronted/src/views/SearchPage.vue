@@ -71,37 +71,6 @@
             </p>
           </div>
 
-          <!-- 筛选器 -->
-          <div class="search-filters">
-            <div class="filter-group">
-              <label class="filter-label">排序：</label>
-              <t-radio-group v-model="sortBy" @change="handleSortChange">
-                <t-radio-button value="relevance">相关度</t-radio-button>
-                <t-radio-button value="createdAt_desc">最新</t-radio-button>
-                <t-radio-button value="playsCount_desc">最热</t-radio-button>
-                <t-radio-button value="likesCount_desc">最受欢迎</t-radio-button>
-              </t-radio-group>
-            </div>
-
-            <div class="filter-group">
-              <label class="filter-label">分类：</label>
-              <t-select
-                v-model="selectedCategoryId"
-                placeholder="选择分类"
-                clearable
-                @change="handleCategoryChange"
-                class="category-select"
-              >
-                <t-option
-                  v-for="category in categories"
-                  :key="category.id"
-                  :value="category.id"
-                  :label="category.name"
-                />
-              </t-select>
-            </div>
-          </div>
-
           <!-- 空结果 -->
           <div v-if="programs.length === 0" class="empty-results">
             <t-result
@@ -306,10 +275,35 @@ const handleCategoryChange = () => {
   }
 }
 
-const handlePageChange = (page: number) => {
-  // 这里应该重新搜索指定页面的数据
-  // 为简化实现，暂时只更新页码
-  pagination.value.current = page
+const handlePageChange = async (page: number) => {
+  if (!currentSearchKeyword.value.trim()) return
+
+  try {
+    const params = {
+      q: currentSearchKeyword.value,
+      page: page,
+      limit: 12
+    }
+
+    const response = await searchApi.searchPrograms(params)
+    if (response.success) {
+      // 手动更新程序存储的数据
+      programStore.$patch({
+        programs: response.data.records,
+        pagination: {
+          current: response.data.current,
+          size: response.data.size,
+          total: response.data.total,
+          pages: response.data.pages,
+          hasNext: response.data.hasNext,
+          hasPrevious: response.data.hasPrevious
+        }
+      })
+    }
+  } catch (error) {
+    console.error('分页搜索失败:', error)
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 

@@ -121,6 +121,9 @@ export interface Playlist {
   updatedAt: string
   itemCount: number
   items?: PlaylistItem[]
+  // API返回的用户信息
+  userName?: string
+  userAvatar?: string
 }
 
 // 歌单项类型

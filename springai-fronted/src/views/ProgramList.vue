@@ -15,68 +15,56 @@
         </t-button>
         
         <h1 class="page-title">{{ pageTitle }}</h1>
-        
-        <div class="header-actions">
-          <t-dropdown :options="sortOptions" @click="handleSortChange">
-            <t-button theme="primary" variant="outline">
-              <template #icon>
-                <t-icon name="filter" />
-              </template>
-              {{ currentSortLabel }}
-            </t-button>
-          </t-dropdown>
+
+        <div class="search-section">
+          <t-input
+            v-model="searchKeyword"
+            placeholder="搜索节目标题..."
+            clearable
+            @enter="handleSearch"
+            @clear="handleClearSearch"
+            size="large"
+            class="search-input"
+          >
+            <template #prefix-icon>
+              <t-icon name="search" />
+            </template>
+            <template #suffix>
+              <t-button
+                theme="primary"
+                @click="handleSearch"
+                :loading="loading"
+              >
+                搜索
+              </t-button>
+            </template>
+          </t-input>
         </div>
       </div>
     </header>
 
-    <!-- 筛选器 -->
-    <section class="filters-section">
-      <div class="filters-content">
-        <!-- 分类筛选 -->
-        <div class="filter-group">
-          <label class="filter-label">分类：</label>
-          <div class="filter-options">
-            <t-button
-              v-for="category in categories"
-              :key="category.id"
-              :theme="selectedCategoryId === category.id ? 'primary' : 'default'"
-              :variant="selectedCategoryId === category.id ? 'base' : 'outline'"
-              size="small"
-              @click="selectCategory(category.id)"
-              class="filter-btn"
-            >
-              {{ category.name }}
-            </t-button>
-            <t-button
-              :theme="selectedCategoryId === null ? 'primary' : 'default'"
-              :variant="selectedCategoryId === null ? 'base' : 'outline'"
-              size="small"
-              @click="selectCategory(null)"
-              class="filter-btn"
-            >
-              全部
-            </t-button>
-          </div>
-        </div>
-
-        <!-- 标签筛选 -->
-        <div class="filter-group">
-          <label class="filter-label">标签：</label>
-          <t-input
-            v-model="tagFilter"
-            placeholder="输入标签进行筛选..."
-            clearable
-            @enter="applyFilters"
-            class="tag-input"
+    <!-- 分类筛选导航栏 -->
+    <section class="category-filter-section">
+      <div class="category-filter-content">
+        <div class="category-tabs">
+          <t-button
+            :theme="selectedCategoryId === null ? 'primary' : 'default'"
+            :variant="selectedCategoryId === null ? 'base' : 'outline'"
+            @click="selectCategory(null)"
+            class="category-btn"
           >
-            <template #suffix>
-              <t-button theme="primary" variant="text" @click="applyFilters">
-                <template #icon>
-                  <t-icon name="search" />
-                </template>
-              </t-button>
-            </template>
-          </t-input>
+            全部
+          </t-button>
+          <t-button
+            v-for="category in categories"
+            :key="category.id"
+            :theme="selectedCategoryId === category.id ? 'primary' : 'default'"
+            :variant="selectedCategoryId === category.id ? 'base' : 'outline'"
+            @click="selectCategory(category.id)"
+            class="category-btn"
+          >
+            {{ category.name }}
+          </t-button>
         </div>
       </div>
     </section>
@@ -145,6 +133,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProgramStore, useCategoryStore } from '@/stores/counter'
+import { searchApi } from '@/services/api'
 import type { ProgramQueryParams } from '@/types'
 import ProgramCard from '@/components/ProgramCard.vue'
 import AudioPlayer from '@/components/AudioPlayer.vue'
@@ -156,6 +145,8 @@ const categoryStore = useCategoryStore()
 
 const selectedCategoryId = ref<number | null>(null)
 const tagFilter = ref('')
+const searchKeyword = ref('')
+const isSearchMode = ref(false)
 const currentSort = ref<string>('createdAt_desc')
 
 // 计算属性
@@ -185,32 +176,76 @@ const sortOptions = [
   { content: '最多评论', value: 'commentsCount_desc' },
   { content: '精选优先', value: 'isFeatured_desc_createdAt_desc' }
 ]
-// 加载节目列表
-const loadPrograms = async () => {
-  const type = route.query.type as string
-  const params: ProgramQueryParams = {
-    page: pagination.value.current,
-    limit: pagination.value.size,
-    sortBy: currentSort.value as any
-  }
-
-  // 根据类型设置特定参数
-  switch (type) {
-    case 'featured':
-      params.sortBy = 'isFeatured_desc_createdAt_desc'
-      break
-    case 'hot':
-      params.sortBy = 'playsCount_desc'
-      break
-    case 'latest':
-      params.sortBy = 'createdAt_desc'
-      break
-  }
-
 const currentSortLabel = computed(() => {
   const option = sortOptions.find(opt => opt.value === currentSort.value)
   return option ? option.content : '排序'
 })
+
+// 加载节目列表
+const loadPrograms = async () => {
+  try {
+    // 如果是搜索模式，使用搜索API
+    if (isSearchMode.value && searchKeyword.value.trim()) {
+      const searchParams = {
+        q: searchKeyword.value.trim(),
+        page: pagination.value.current,
+        limit: pagination.value.size
+      }
+
+      console.log('搜索节目标题，参数:', searchParams)
+      const response = await searchApi.searchPrograms(searchParams)
+
+      if (response.success) {
+        // 手动更新程序存储的数据
+        programStore.$patch({
+          programs: response.data.records,
+          pagination: {
+            current: response.data.current,
+            size: response.data.size,
+            total: response.data.total,
+            pages: response.data.pages,
+            hasNext: response.data.hasNext,
+            hasPrevious: response.data.hasPrevious
+          }
+        })
+      }
+    } else {
+      // 普通模式，使用原有的API
+      const type = route.query.type as string
+      const params: ProgramQueryParams = {
+        page: pagination.value.current,
+        limit: pagination.value.size,
+        sortBy: currentSort.value as any
+      }
+
+      // 根据类型设置特定参数
+      switch (type) {
+        case 'featured':
+          params.sortBy = 'isFeatured_desc_createdAt_desc'
+          break
+        case 'hot':
+          params.sortBy = 'playsCount_desc'
+          break
+        case 'latest':
+          params.sortBy = 'createdAt_desc'
+          break
+      }
+
+      // 应用分类筛选条件
+      if (selectedCategoryId.value) {
+        params.categoryId = selectedCategoryId.value
+      }
+      if (tagFilter.value.trim()) {
+        params.tag = tagFilter.value.trim()
+      }
+
+      console.log('加载节目列表，参数:', params)
+      await programStore.fetchPrograms(params)
+    }
+  } catch (error) {
+    console.error('加载节目失败:', error)
+  }
+}
 
 // 监听路由变化
 watch(() => route.query, () => {
@@ -222,17 +257,6 @@ onMounted(async () => {
   await categoryStore.fetchCategories()
   loadPrograms()
 })
-
-  // 应用筛选条件
-  if (selectedCategoryId.value) {
-    params.categoryId = selectedCategoryId.value
-  }
-  if (tagFilter.value.trim()) {
-    params.tag = tagFilter.value.trim()
-  }
-
-  await programStore.fetchPrograms(params)
-}
 
 // 事件处理
 const goBack = () => {
@@ -246,6 +270,28 @@ const handleSortChange = (data: any) => {
 
 const selectCategory = (categoryId: number | null) => {
   selectedCategoryId.value = categoryId
+  // 重置分页到第一页
+  pagination.value.current = 1
+  loadPrograms()
+}
+
+const handleSearch = () => {
+  if (!searchKeyword.value.trim()) {
+    handleClearSearch()
+    return
+  }
+
+  isSearchMode.value = true
+  // 重置分页到第一页
+  pagination.value.current = 1
+  loadPrograms()
+}
+
+const handleClearSearch = () => {
+  searchKeyword.value = ''
+  isSearchMode.value = false
+  // 重置分页到第一页
+  pagination.value.current = 1
   loadPrograms()
 }
 
@@ -256,7 +302,11 @@ const applyFilters = () => {
 const resetFilters = () => {
   selectedCategoryId.value = null
   tagFilter.value = ''
+  searchKeyword.value = ''
+  isSearchMode.value = false
   currentSort.value = 'createdAt_desc'
+  // 重置分页到第一页
+  pagination.value.current = 1
   loadPrograms()
 }
 
@@ -285,7 +335,7 @@ const handlePageSizeChange = (pageSize: number) => {
 .page-header {
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  position: sticky;
+  position: relative;
   top: 0;
   z-index: 100;
 }
@@ -306,9 +356,47 @@ const handlePageSizeChange = (pageSize: number) => {
   margin: 0;
 }
 
-.header-actions {
+.search-section {
   display: flex;
   gap: 12px;
+  flex: 1;
+  max-width: 500px;
+}
+
+.search-input {
+  width: 100%;
+}
+
+/* 分类筛选导航栏 */
+.category-filter-section {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.category-filter-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+
+.category-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.category-btn {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  padding: 8px 16px;
+}
+
+.category-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* 筛选器 */
@@ -401,36 +489,54 @@ const handlePageSizeChange = (pageSize: number) => {
     gap: 12px;
     align-items: stretch;
   }
-  
+
   .page-title {
     text-align: center;
     font-size: 20px;
   }
-  
+
+  .search-section {
+    max-width: none;
+  }
+
+  .category-filter-content {
+    padding: 12px 16px;
+  }
+
+  .category-tabs {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .category-btn {
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+
   .filters-content {
     padding: 16px;
   }
-  
+
   .filter-group {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .filter-options {
     width: 100%;
     justify-content: center;
   }
-  
+
   .tag-input {
     max-width: none;
     width: 100%;
   }
-  
+
   .programs-content {
     padding: 0 16px;
   }
-  
+
   .programs-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 16px;
@@ -441,11 +547,24 @@ const handlePageSizeChange = (pageSize: number) => {
   .programs-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .header-content {
     padding: 12px 16px;
   }
-  
+
+  .category-filter-content {
+    padding: 8px 12px;
+  }
+
+  .category-tabs {
+    gap: 6px;
+  }
+
+  .category-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
   .programs-content {
     padding: 0 12px;
   }

@@ -79,6 +79,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/playlists/public',
+      name: 'PublicPlaylistsPage',
+      component: () => import('../views/PublicPlaylistsPage.vue'),
+      meta: {
+        title: '公开歌单',
+        requiresAuth: true
+      }
+    },
+    {
       path: '/playlist/:id',
       name: 'PlaylistDetail',
       component: () => import('../views/PlaylistDetail.vue'),
@@ -93,24 +102,6 @@ const router = createRouter({
       component: () => import('../views/UserComments.vue'),
       meta: {
         title: '我的评论',
-        requiresAuth: true
-      }
-    },
-    {
-      path: '/debug',
-      name: 'Debug',
-      component: () => import('../views/DebugPage.vue'),
-      meta: {
-        title: 'API调试',
-        requiresAuth: false
-      }
-    },
-    {
-      path: '/test',
-      name: 'Test',
-      component: () => import('../views/TestPage.vue'),
-      meta: {
-        title: '功能测试',
         requiresAuth: true
       }
     }

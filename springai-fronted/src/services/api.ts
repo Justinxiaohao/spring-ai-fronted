@@ -215,6 +215,11 @@ export const playlistApi = {
     return request<Playlist[]>('/api/playlists')
   },
 
+  // 获取公开歌单列表
+  async getPublicPlaylists(limit = 10, offset = 0): Promise<ApiResponse<Playlist[]>> {
+    return request<Playlist[]>(`/api/playlists/public?limit=${limit}&offset=${offset}`)
+  },
+
   // 获取歌单详情
   async getPlaylistDetail(playlistId: number): Promise<ApiResponse<Playlist>> {
     return request<Playlist>(`/api/playlists/${playlistId}`)
@@ -320,6 +325,22 @@ export const searchApi = {
     const endpoint = `/api/programs/search${queryString ? `?${queryString}` : ''}`
 
     return request<PaginationData<Program>>(endpoint)
+  },
+
+  // 搜索歌单
+  async searchPlaylists(params: { q?: string; page?: number; limit?: number } = {}): Promise<ApiResponse<PaginationData<Playlist>>> {
+    const searchParams = new URLSearchParams()
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, String(value))
+      }
+    })
+
+    const queryString = searchParams.toString()
+    const endpoint = `/api/playlists/search${queryString ? `?${queryString}` : ''}`
+
+    return request<PaginationData<Playlist>>(endpoint)
   }
 }
 

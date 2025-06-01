@@ -49,29 +49,7 @@
 
     <!-- 主要内容区域 -->
     <main class="main-content">
-      <!-- 分类导航 -->
-      <section class="category-nav" v-if="categories.length > 0">
-        <div class="nav-container">
-          <div class="category-scroll">
-            <div
-              v-for="category in categories"
-              :key="category.id"
-              :class="['category-tag', { active: selectedCategoryId === category.id }]"
-              @click="selectCategory(category.id)"
-            >
-              <span class="category-icon">{{ getCategoryIcon(category.name) }}</span>
-              <span class="category-name">{{ category.name }}</span>
-            </div>
-            <div
-              :class="['category-tag', { active: selectedCategoryId === null }]"
-              @click="selectCategory(null)"
-            >
-              <span class="category-icon">🌟</span>
-              <span class="category-name">全部</span>
-            </div>
-          </div>
-        </div>
-      </section>
+
 
       <!-- 精选节目轮播 -->
       <section class="featured-section" v-if="featuredPrograms.length > 0">
@@ -119,11 +97,12 @@
           </button>
         </div>
       </section>
-      <!-- 热门节目信息展示 -->
-      <section class="latest-section">
+
+      <!-- 热门节目展示 -->
+      <section class="hot-programs-section">
         <div class="section-header">
           <h2 class="section-title">🔥 热门节目</h2>
-          <t-button theme="primary" variant="text" @click="viewMore('latest')">
+          <t-button theme="primary" variant="text" @click="viewMore('programs')">
             查看更多
             <template #suffix>
               <t-icon name="chevron-right" />
@@ -131,20 +110,74 @@
           </t-button>
         </div>
 
-        <div class="programs-grid" v-if="programs.length > 0">
+        <div v-if="hotPrograms.length > 0" class="programs-showcase">
           <ProgramCard
-            v-for="program in programs.slice(0, 8)"
+            v-for="program in hotPrograms.slice(0, 4)"
             :key="program.id"
             :program="program"
-            class="animate__animated animate__fadeInUp"
+            class="program-showcase-item animate__animated animate__fadeInUp"
           />
         </div>
 
-        <t-skeleton
-          v-else-if="programStore.loading"
-          :row-col="[{ width: '100%', height: '200px' }]"
-          class="skeleton-grid"
-        />
+        <!-- 骨架屏加载状态 -->
+        <div v-else-if="programStore.loading" class="programs-showcase">
+          <t-skeleton
+            v-for="i in 4"
+            :key="i"
+            :row-col="[{ width: '100%', height: '200px' }]"
+            class="skeleton-item"
+          />
+        </div>
+      </section>
+
+      <!-- 最新歌单展示 -->
+      <section class="playlists-section">
+        <div class="section-header">
+          <h2 class="section-title">🎵 最新歌单</h2>
+          <t-button theme="primary" variant="text" @click="viewMore('playlists')">
+            查看更多
+            <template #suffix>
+              <t-icon name="chevron-right" />
+            </template>
+          </t-button>
+        </div>
+
+        <!-- 调试信息 -->
+        <div v-if="publicPlaylists.length === 0 && !playlistLoading && !playlistError" class="debug-info">
+          <p>调试信息：</p>
+          <p>publicPlaylists.length = {{ publicPlaylists.length }}</p>
+          <p>playlistLoading = {{ playlistLoading }}</p>
+          <p>playlistError = {{ playlistError }}</p>
+          <p>API数据: {{ JSON.stringify(publicPlaylists, null, 2) }}</p>
+        </div>
+
+        <div v-if="publicPlaylists.length > 0" class="playlists-showcase">
+          <PlaylistCard
+            v-for="playlist in publicPlaylists.slice(0, 4)"
+            :key="playlist.id"
+            :playlist="playlist"
+            :is-owner="false"
+            class="playlist-showcase-item animate__animated animate__fadeInUp"
+            @play="handlePlayPlaylist"
+          />
+        </div>
+
+        <!-- 骨架屏加载状态 -->
+        <div v-else-if="playlistLoading" class="playlists-showcase">
+          <t-skeleton
+            v-for="i in 4"
+            :key="i"
+            :row-col="[{ width: '100%', height: '200px' }]"
+            class="skeleton-item"
+          />
+        </div>
+
+        <!-- 错误状态 -->
+        <div v-else-if="playlistError" class="error-state">
+          <t-icon name="error-circle" size="48px" />
+          <p>加载歌单失败</p>
+          <t-button theme="primary" @click="loadPublicPlaylists">重试</t-button>
+        </div>
       </section>
     </main>
 
@@ -163,12 +196,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
-import { useProgramStore, useCategoryStore } from "@/stores/counter";
-import { utils, userApi } from "@/services/api";
+import { useProgramStore, useCategoryStore, usePlaylistStore } from "@/stores/counter";
+import { utils, userApi, playlistApi } from "@/services/api";
 import ProgramCard from "@/components/ProgramCard.vue";
+import PlaylistCard from "@/components/PlaylistCard.vue";
 import AudioPlayer from "@/components/AudioPlayer.vue";
 import ChatBot from "@/components/ChatBot.vue";
 import AIWelcomeDialog from "@/components/AIWelcomeDialog.vue";
@@ -176,6 +210,7 @@ import AIWelcomeDialog from "@/components/AIWelcomeDialog.vue";
 const router = useRouter();
 const programStore = useProgramStore();
 const categoryStore = useCategoryStore();
+const playlistStore = usePlaylistStore();
 
 const userEmail = ref("");
 const userAvatarUrl = ref("");
@@ -191,6 +226,11 @@ const programs = computed(() => programStore.programs);
 const featuredPrograms = computed(() => programStore.featuredPrograms);
 const hotPrograms = computed(() => programStore.hotPrograms);
 const categories = computed(() => categoryStore.categories);
+
+// 公开歌单数据
+const publicPlaylists = ref<any[]>([]);
+const playlistLoading = ref(false);
+const playlistError = ref<string | null>(null);
 
 // 用户菜单选项
 const userMenuOptions = [
@@ -223,13 +263,23 @@ onMounted(async () => {
   }
 
   // 加载数据
-  await Promise.all([loadInitialData(), categoryStore.fetchCategories()]);
+  await Promise.all([
+    loadInitialData(),
+    categoryStore.fetchCategories(),
+    loadPublicPlaylists()
+  ]);
 });
 
 // 组件销毁时清理定时器
 onUnmounted(() => {
   stopFeaturedCarousel();
 });
+
+// 监听 publicPlaylists 变化
+watch(publicPlaylists, (newValue) => {
+  console.log("publicPlaylists 数据变化:", newValue);
+  console.log("publicPlaylists 长度:", newValue.length);
+}, { immediate: true });
 
 // 加载用户信息
 const loadUserInfo = async () => {
@@ -253,8 +303,7 @@ const loadInitialData = async () => {
   try {
     await Promise.all([
       programStore.fetchFeaturedPrograms(5),
-      programStore.fetchHotPrograms(8),
-      programStore.fetchPrograms({ sortBy: "createdAt_desc", limit: 8 }),
+      programStore.fetchHotPrograms(4), // 获取热门节目（按播放次数排序）
     ]);
 
     // 启动轮播
@@ -264,6 +313,37 @@ const loadInitialData = async () => {
     console.error(error);
   }
 };
+
+// 加载公开歌单
+const loadPublicPlaylists = async () => {
+  playlistLoading.value = true;
+  playlistError.value = null;
+
+  try {
+    console.log("开始加载公开歌单...");
+    // 获取最新的公开歌单（API返回按更新时间倒序排列）
+    const response = await playlistApi.getPublicPlaylists(4);
+    console.log("公开歌单API响应:", response);
+
+    if (response.success && response.data) {
+      // API直接返回歌单数组，不是分页数据结构
+      publicPlaylists.value = Array.isArray(response.data) ? response.data : [];
+      console.log("公开歌单数据:", publicPlaylists.value);
+      console.log("歌单数量:", publicPlaylists.value.length);
+    } else {
+      console.warn("公开歌单API返回失败或无数据:", response);
+      playlistError.value = response.message || "获取歌单失败";
+      publicPlaylists.value = [];
+    }
+  } catch (error) {
+    console.error("加载公开歌单失败:", error);
+    playlistError.value = "网络错误，请稍后重试";
+    publicPlaylists.value = [];
+  } finally {
+    playlistLoading.value = false;
+  }
+};
+
 
 // 轮播相关函数
 const startFeaturedCarousel = () => {
@@ -341,7 +421,31 @@ const goToProgram = (programId: number) => {
 };
 
 const viewMore = (type: string) => {
-  router.push(`/programs?type=${type}`);
+  switch (type) {
+    case 'programs':
+      router.push('/programs?type=hot'); // 跳转到热门节目页面
+      break;
+    case 'featured':
+      router.push('/programs?type=featured');
+      break;
+    case 'playlists':
+      router.push('/playlists/public'); // 跳转到公开歌单页面
+      break;
+    default:
+      router.push('/programs');
+  }
+};
+
+// 处理歌单播放
+const handlePlayPlaylist = async (playlist: any) => {
+  // 如果歌单为空，提示用户
+  if (playlist.itemCount === 0) {
+    MessagePlugin.info('歌单为空，请先添加节目');
+    return;
+  }
+
+  // 跳转到歌单详情页面并开始播放
+  router.push(`/playlist/${playlist.id}?autoplay=true`);
 };
 
 const formatPlayCount = (count: number) => {
@@ -396,8 +500,23 @@ const handleStartChat = (question?: string) => {
 <style scoped>
 .index-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #f8fafc 100%);
   padding-bottom: 80px; /* 为播放器留出空间 */
+  position: relative;
+}
+
+.index-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* 顶部导航样式 */
@@ -514,7 +633,9 @@ const handleStartChat = (question?: string) => {
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px 32px;
+  padding: 32px 40px;
+  position: relative;
+  z-index: 1;
 }
 
 /* 分类导航样式 */
@@ -586,22 +707,123 @@ const handleStartChat = (question?: string) => {
 
 /* 区块标题样式 */
 .section-title {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 900;
   color: #1f2937;
-  margin: 0 0 20px 0;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -1px;
+  position: relative;
+  display: inline-block;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-end;
+  margin-bottom: 40px;
+  padding: 0;
+}
+
+.section-header .t-button {
+  font-weight: 700;
+  border-radius: 25px;
+  padding: 12px 28px;
+  font-size: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.section-header .t-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.section-header .t-button:hover::before {
+  left: 100%;
+}
+
+.section-header .t-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
 }
 
 /* 精选节目轮播样式 */
 .featured-section {
+  margin-bottom: 56px;
+}
+
+/* 热门节目区块样式 */
+.hot-programs-section {
   margin-bottom: 48px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.1),
+    0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  position: relative;
+  overflow: hidden;
+}
+
+.hot-programs-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 歌单区块样式 */
+.playlists-section {
+  margin-bottom: 48px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.1),
+    0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  position: relative;
+  overflow: hidden;
+}
+
+.playlists-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 
 .featured-carousel {
@@ -737,20 +959,44 @@ const handleStartChat = (question?: string) => {
   right: 20px;
 }
 
-/* 节目网格样式 */
+/* 节目展示网格样式 */
+.programs-showcase {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.program-showcase-item {
+  transition: all 0.3s ease;
+}
+
+.program-showcase-item:hover {
+  transform: translateY(-8px);
+}
+
+/* 歌单展示网格样式 */
+.playlists-showcase {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.playlist-showcase-item {
+  transition: all 0.3s ease;
+}
+
+.playlist-showcase-item:hover {
+  transform: translateY(-8px);
+}
+
+/* 保留原有网格样式用于其他地方 */
 .programs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 24px;
   margin-bottom: 32px;
-}
-
-/* 大屏幕优化 */
-@media (min-width: 1600px) {
-  .programs-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 20px;
-  }
 }
 
 .skeleton-grid {
@@ -759,8 +1005,48 @@ const handleStartChat = (question?: string) => {
   gap: 24px;
 }
 
-.latest-section {
-  margin-bottom: 48px;
+/* 歌单网格样式（保留用于其他页面） */
+.playlists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+/* 调试信息样式 */
+.debug-info {
+  padding: 20px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin: 16px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.skeleton-item {
+  border-radius: 12px;
+}
+
+/* 错误状态样式 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.error-state p {
+  margin: 16px 0;
+  font-size: 16px;
 }
 
 /* 动画延迟 */
@@ -800,7 +1086,28 @@ const handleStartChat = (question?: string) => {
     padding: 16px;
   }
 
+  .hot-programs-section,
+  .playlists-section {
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+
+  .programs-showcase,
+  .playlists-showcase {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .section-title {
+    font-size: 28px;
+  }
+
   .programs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .playlists-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 16px;
   }
@@ -843,7 +1150,28 @@ const handleStartChat = (question?: string) => {
     font-size: 14px;
   }
 
+  .hot-programs-section,
+  .playlists-section {
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .programs-showcase,
+  .playlists-showcase {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .section-title {
+    font-size: 24px;
+  }
+
   .programs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .playlists-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 12px;
   }
@@ -864,11 +1192,32 @@ const handleStartChat = (question?: string) => {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+    padding: 0;
   }
 }
 
 @media (max-width: 480px) {
+  .hot-programs-section,
+  .playlists-section {
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .programs-showcase,
+  .playlists-showcase {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .section-title {
+    font-size: 22px;
+  }
+
   .programs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .playlists-grid {
     grid-template-columns: 1fr;
   }
 
