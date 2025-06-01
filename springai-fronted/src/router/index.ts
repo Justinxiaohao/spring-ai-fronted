@@ -70,15 +70,6 @@ const router = createRouter({
       }
     },
     {
-      path: '/user/history',
-      name: 'UserPlayHistory',
-      component: () => import('../views/UserPlayHistory.vue'),
-      meta: {
-        title: '播放历史',
-        requiresAuth: true
-      }
-    },
-    {
       path: '/playlists',
       name: 'PlaylistsPage',
       component: () => import('../views/PlaylistsPage.vue'),
