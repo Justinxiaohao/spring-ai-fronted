@@ -6,31 +6,6 @@
         <t-icon name="chat" />
         评论 ({{ pagination.total }})
       </h3>
-      <div class="stats-actions">
-        <t-button
-          theme="primary"
-          variant="outline"
-          size="small"
-          @click="refreshComments"
-          :loading="loading"
-        >
-          <template #icon>
-            <t-icon name="refresh" />
-          </template>
-          刷新
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          @click="simpleRefresh"
-        >
-          <template #icon>
-            <t-icon name="refresh" />
-          </template>
-          简单刷新
-        </t-button>
-      </div>
     </div>
 
     <!-- 发表评论 -->
@@ -64,14 +39,6 @@
                 :disabled="!commentContent || !commentContent.trim() || submitting"
               >
                 {{ submitting ? '发表中...' : '发表评论' }}
-              </t-button>
-              <t-button
-                theme="default"
-                variant="outline"
-                @click="debugCommentState"
-                size="small"
-              >
-                调试
               </t-button>
             </div>
           </div>
@@ -386,45 +353,6 @@ const handleAvatarError = (event: Event) => {
   target.src = utils.getAvatarUrl()
 }
 
-// 调试函数
-const debugCommentState = () => {
-  const commentsArray = comments.value || []
-  const paginationData = pagination.value || {}
-
-  const debugInfo = {
-    programId: props.programId,
-    commentContent: commentContent.value,
-    commentContentLength: commentContent.value.length,
-    commentContentTrimmed: commentContent.value.trim(),
-    commentContentTrimmedLength: commentContent.value.trim().length,
-    canComment: canComment.value,
-    submitting: submitting.value,
-    loading: loading.value,
-    userEmail: localStorage.getItem('userEmail'),
-    currentUser: currentUser.value,
-    currentUserAvatar: currentUserAvatar.value,
-    buttonDisabled: !commentContent.value || !commentContent.value.trim() || submitting.value,
-    commentsCount: commentsArray.length,
-    commentsArray: commentsArray,
-    // 添加头像调试信息
-    avatarDebug: commentsArray.map(comment => ({
-      id: comment.id,
-      userName: comment.userName,
-      userAvatar: comment.userAvatar,
-      avatarUrl: utils.getAvatarUrl(comment.userAvatar)
-    })),
-    pagination: paginationData,
-    storeState: {
-      currentProgramComments: commentStore.currentProgramComments,
-      loading: commentStore.loading,
-      submitting: commentStore.submitting,
-      error: commentStore.error
-    }
-  }
-
-  console.log('评论组件调试信息:', debugInfo)
-  MessagePlugin.info('调试信息已输出到控制台')
-}
 </script>
 
 <style scoped>
@@ -452,12 +380,6 @@ const debugCommentState = () => {
   font-weight: 600;
   color: #1f2937;
   margin: 0;
-}
-
-.stats-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 .comment-form {
