@@ -149,7 +149,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useProgramStore, useCategoryStore } from '@/stores/counter'
+import { useProgramStore } from '@/stores/counter'
 import { searchApi } from '@/services/api'
 import type { ProgramQueryParams } from '@/types'
 import ProgramCard from '@/components/ProgramCard.vue'
@@ -158,13 +158,10 @@ import AudioPlayer from '@/components/AudioPlayer.vue'
 const route = useRoute()
 const router = useRouter()
 const programStore = useProgramStore()
-const categoryStore = useCategoryStore()
 
 const searchKeyword = ref('')
 const currentSearchKeyword = ref('')
 const hasSearched = ref(false)
-const sortBy = ref('relevance')
-const selectedCategoryId = ref<number | null>(null)
 const recommendedPrograms = ref<any[]>([])
 
 // 热门搜索标签
@@ -174,7 +171,6 @@ const popularTags = ['冥想', '放松', '正念', '睡眠', '音乐', '故事',
 const programs = computed(() => programStore.programs)
 const pagination = computed(() => programStore.pagination)
 const loading = computed(() => programStore.loading)
-const categories = computed(() => categoryStore.categories)
 
 // 搜索处理
 const handleSearch = async () => {
@@ -238,8 +234,6 @@ watch(() => route.query.q, (newQuery) => {
 
 // 初始化
 onMounted(async () => {
-  await categoryStore.fetchCategories()
-
   // 如果没有搜索关键词，加载推荐节目
   if (!route.query.q) {
     loadRecommendedPrograms()
@@ -261,18 +255,6 @@ const handleClear = () => {
 const clearSearch = () => {
   handleClear()
   loadRecommendedPrograms()
-}
-
-const handleSortChange = () => {
-  if (hasSearched.value) {
-    handleSearch()
-  }
-}
-
-const handleCategoryChange = () => {
-  if (hasSearched.value) {
-    handleSearch()
-  }
 }
 
 const handlePageChange = async (page: number) => {
@@ -392,32 +374,6 @@ const searchByTag = (tag: string) => {
   margin: 0;
 }
 
-.search-filters {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 24px;
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.filter-label {
-  font-weight: 600;
-  color: #374151;
-  min-width: 60px;
-}
-
-.category-select {
-  min-width: 150px;
-}
-
 .empty-results {
   padding: 60px 20px;
   text-align: center;
@@ -479,17 +435,6 @@ const searchByTag = (tag: string) => {
   .header-content {
     flex-direction: column;
     gap: 12px;
-  }
-  
-  .search-filters {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .filter-group {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
   }
   
   .search-content {

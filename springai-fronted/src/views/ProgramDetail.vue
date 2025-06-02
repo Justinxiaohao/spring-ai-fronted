@@ -72,46 +72,6 @@
 
             <h1 class="program-title">{{ program.title }}</h1>
 
-            <div class="program-meta">
-              <div class="meta-item">
-                <t-icon name="user" />
-                <span>{{ program.artistNarrator }}</span>
-              </div>
-              <div class="meta-item">
-                <t-icon name="folder" />
-                <span>{{ program.album }}</span>
-              </div>
-              <div class="meta-item">
-                <t-icon name="calendar" />
-                <span>{{ formatDate(program.publicationDate) }}</span>
-              </div>
-              <div class="meta-item">
-                <t-icon name="time" />
-                <span>{{ formatDuration(program.durationSeconds) }}</span>
-              </div>
-            </div>
-
-            <div class="program-stats">
-              <div class="stat-item">
-                <t-icon name="play-circle" />
-                <span>{{ formatPlayCount(program.playsCount) }} 播放</span>
-              </div>
-              <div class="stat-item">
-                <LikeButton
-                  :program-id="program.id"
-                  :initial-like-count="program.likesCount"
-                  :show-count="true"
-                  :show-text="true"
-                  size="large"
-                  @like-changed="handleLikeChanged"
-                />
-              </div>
-              <div class="stat-item">
-                <t-icon name="chat" />
-                <span>{{ program.commentsCount }} 评论</span>
-              </div>
-            </div>
-
             <div class="program-tags" v-if="programTags.length > 0">
               <t-tag
                 v-for="tag in programTags"
@@ -123,13 +83,24 @@
               </t-tag>
             </div>
 
+            <!-- 将喜欢和加入歌单按钮放在同一行 -->
             <div class="program-actions">
-              <AddToPlaylistButton
-                :program-id="program.id"
-                :show-text="true"
-                size="large"
-                @added="handleAddedToPlaylist"
-              />
+              <div class="action-buttons">
+                <LikeButton
+                  :program-id="program.id"
+                  :initial-like-count="program.likesCount"
+                  :show-count="true"
+                  :show-text="true"
+                  size="large"
+                  @like-changed="handleLikeChanged"
+                />
+                <AddToPlaylistButton
+                  :program-id="program.id"
+                  :show-text="true"
+                  size="large"
+                  @added="handleAddedToPlaylist"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -317,7 +288,7 @@ onMounted(() => {
 /* 头部样式 */
 .program-header {
   position: relative;
-  height: 400px;
+  height: 320px;
   overflow: hidden;
 }
 
@@ -354,7 +325,7 @@ onMounted(() => {
   padding: 40px 24px;
   display: flex;
   gap: 32px;
-  align-items: flex-end;
+  align-items: flex-start; /* 修改为顶部对齐 */
   height: 100%;
 }
 
@@ -388,6 +359,7 @@ onMounted(() => {
   flex: 1;
   color: white;
   min-width: 0;
+  padding-top: 8px; /* 微调间距 */
 }
 
 .featured-badge {
@@ -401,39 +373,11 @@ onMounted(() => {
   line-height: 1.2;
 }
 
-.program-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin-bottom: 16px;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  opacity: 0.9;
-}
-
-.program-stats {
-  display: flex;
-  gap: 32px;
-  margin-bottom: 20px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
 .program-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 20px; /* 增加与按钮的间距 */
 }
 
 .tag-item {
@@ -442,8 +386,14 @@ onMounted(() => {
   color: white;
 }
 
+/* 按钮容器样式 */
 .program-actions {
   margin-top: 20px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 16px;
 }
 
 /* 内容区域样式 */
@@ -509,14 +459,8 @@ onMounted(() => {
     font-size: 24px;
   }
 
-  .program-meta {
+  .action-buttons {
     justify-content: center;
-    gap: 16px;
-  }
-
-  .program-stats {
-    justify-content: center;
-    gap: 20px;
   }
 
   .programs-grid {

@@ -62,10 +62,6 @@
                 <span>{{ playlist.itemCount }} 首节目</span>
               </div>
               <div class="meta-item">
-                <t-icon name="time" />
-                <span>{{ formatDuration(totalDuration) }}</span>
-              </div>
-              <div class="meta-item">
                 <t-icon name="calendar" />
                 <span>创建于 {{ formatDate(playlist.createdAt) }}</span>
               </div>
@@ -170,9 +166,6 @@
                 <p class="item-artist">{{ item.programArtistNarrator }}</p>
               </div>
               
-              <div class="item-duration">
-                {{ formatDuration(item.programDurationSeconds) }}
-              </div>
               
               <div class="item-actions" v-if="isOwner">
                 <t-button 
@@ -494,6 +487,8 @@ const updatePlaylist = async () => {
     }
     
     MessagePlugin.success('歌单更新成功')
+    //刷新界面
+    await loadPlaylistDetail()
     showEditDialog.value = false
   } catch (error: any) {
     console.error('更新歌单失败:', error)
@@ -589,7 +584,6 @@ const addProgramToPlaylist = async (programId: number) => {
 }
 
 // 工具函数
-const formatDuration = (seconds: number) => utils.formatDuration(seconds)
 const formatDate = (dateString: string) => utils.formatDate(dateString)
 
 // 编辑表单初始化

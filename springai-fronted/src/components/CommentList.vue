@@ -1,10 +1,9 @@
 <template>
-  <div class="comment-list-container">
-    <!-- 评论统计 -->
+  <div class="comment-list-container">    <!-- 评论统计 -->
     <div class="comment-stats">
       <h3 class="stats-title">
         <t-icon name="chat" />
-        评论 ({{ pagination.total }})
+        评论 ({{ totalCommentsCount }})
       </h3>
     </div>
 
@@ -143,6 +142,34 @@ const pagination = computed(() => {
   }
 })
 
+// 计算总评论数（包括回复）
+const totalCommentsCount = computed(() => {
+  const mainCommentsTotal = pagination.value.total || 0
+  
+  if (mainCommentsTotal === 0) {
+    return 0
+  }
+  
+  // 如果当前页面有评论数据，计算实际的回复总数
+  if (comments.value && comments.value.length > 0) {
+    // 计算当前页面所有主评论的回复数量
+    const currentPageRepliesCount = comments.value.reduce((sum, comment) => {
+      if (comment.replies && Array.isArray(comment.replies)) {
+        // 如果已经加载了回复，使用实际数量
+        return sum + comment.replies.length
+      } else {
+        // 否则使用 replyCount
+        return sum + (comment.replyCount || 0)
+      }
+    }, 0)
+    
+    if (pagination.value.totalPages <= 1) {
+      return mainCommentsTotal + currentPageRepliesCount
+    }
+  }
+  return mainCommentsTotal
+})
+
 const canComment = computed(() => {
   return !!localStorage.getItem('userEmail')
 })
@@ -173,66 +200,6 @@ const loadComments = async () => {
     await commentStore.fetchProgramComments(props.programId, 1, 10)
   } catch (error) {
     console.error('加载评论失败:', error)
-  }
-}
-
-// 刷新评论
-const refreshComments = async () => {
-  if (!props.programId) return
-
-  try {
-    console.log('开始刷新评论，节目ID:', props.programId)
-    console.log('刷新前评论数量:', comments.value.length)
-
-    // 直接重新加载评论，不需要手动清空状态
-    // fetchProgramComments 方法会在第一页时自动清空状态
-    await commentStore.fetchProgramComments(props.programId, 1, 10)
-
-    // 等待一个tick确保响应式更新完成
-    await nextTick()
-
-    console.log('刷新评论完成，当前评论数量:', comments.value.length)
-    console.log('当前store状态:', {
-      currentProgramComments: commentStore.currentProgramComments,
-      pagination: commentStore.pagination,
-      loading: commentStore.loading,
-      error: commentStore.error
-    })
-
-    MessagePlugin.success('评论已刷新')
-  } catch (error) {
-    console.error('刷新评论失败:', error)
-    MessagePlugin.error('刷新失败，请稍后重试')
-  }
-}
-
-// 简单刷新方法（用于测试）
-const simpleRefresh = async () => {
-  if (!props.programId) return
-
-  try {
-    console.log('=== 简单刷新开始 ===')
-    console.log('节目ID:', props.programId)
-    console.log('刷新前状态:', {
-      commentsLength: comments.value.length,
-      storeComments: commentStore.currentProgramComments.length,
-      pagination: commentStore.pagination
-    })
-
-    // 直接调用loadComments方法
-    await loadComments()
-
-    console.log('刷新后状态:', {
-      commentsLength: comments.value.length,
-      storeComments: commentStore.currentProgramComments.length,
-      pagination: commentStore.pagination
-    })
-    console.log('=== 简单刷新结束 ===')
-
-    MessagePlugin.success('简单刷新完成')
-  } catch (error) {
-    console.error('简单刷新失败:', error)
-    MessagePlugin.error('简单刷新失败')
   }
 }
 
@@ -352,7 +319,6 @@ const handleAvatarError = (event: Event) => {
   // 使用工具函数获取默认头像
   target.src = utils.getAvatarUrl()
 }
-
 </script>
 
 <style scoped>

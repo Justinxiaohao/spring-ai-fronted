@@ -7,31 +7,6 @@
           <h1 class="app-title">🎵 心理治愈电台</h1>
         </div>
         
-        <div class="search-section">
-          <t-input
-            v-model="searchKeyword"
-            placeholder="搜索电台节目、主播或标签..."
-            clearable
-            @enter="handleSearch"
-            @clear="clearSearch"
-            size="large"
-            class="search-input"
-          >
-            <template #prefix-icon>
-              <t-icon name="search" />
-            </template>
-            <template #suffix>
-              <t-button
-                theme="primary"
-                @click="handleSearch"
-                :disabled="!searchKeyword.trim()"
-                class="search-btn"
-              >
-                搜索
-              </t-button>
-            </template>
-          </t-input>
-        </div>
         
         <div class="user-section">
           <t-dropdown :options="userMenuOptions" @click="handleUserMenuClick">
@@ -72,7 +47,7 @@
               <p class="featured-description">{{ program.description }}</p>
               <div class="featured-meta">
                 <span>{{ program.artistNarrator }}</span>
-                <span>{{ formatPlayCount(program.playsCount) }} 播放</span>
+                <!-- <span>{{ formatPlayCount(program.playsCount) }} 播放</span> -->
               </div>
             </div>
           </div>
@@ -552,20 +527,6 @@ const handleStartChat = (question?: string) => {
   background-clip: text;
 }
 
-.search-section {
-  flex: 1;
-  max-width: 500px;
-}
-
-.search-input {
-  width: 100%;
-}
-
-.search-btn {
-  margin-left: 8px;
-  border-radius: 8px;
-  font-weight: 600;
-}
 
 .user-section {
   flex-shrink: 0;

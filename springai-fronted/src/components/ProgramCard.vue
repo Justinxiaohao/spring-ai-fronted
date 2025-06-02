@@ -35,23 +35,8 @@
       <h3 class="program-title">{{ program.title }}</h3>
       <p class="program-description">{{ truncatedDescription }}</p>
 
-      <div class="program-meta">
-        <div class="meta-item">
-          <t-icon name="user" size="14px" />
-          <span>{{ program.artistNarrator }}</span>
-        </div>
-        <div class="meta-item">
-          <t-icon name="time" size="14px" />
-          <span>{{ formattedDuration }}</span>
-        </div>
-      </div>
-
-      <div class="program-stats">
-        <div class="stat-item">
-          <t-icon name="play-circle" size="14px" />
-          <span>{{ formattedPlayCount }}</span>
-        </div>
-        <div class="stat-item">
+      <div class="program-actions">
+        <div class="left-action">
           <LikeButton
             :program-id="program.id"
             :initial-like-count="program.likesCount"
@@ -59,11 +44,17 @@
             :show-text="false"
             size="small"
             @like-changed="handleLikeChanged"
+            @click.stop
           />
         </div>
-        <div class="stat-item">
-          <t-icon name="chat" size="14px" />
-          <span>{{ program.commentsCount }}</span>
+        <div class="right-action">
+          <AddToPlaylistButton
+            :program-id="program.id"
+            :show-text="false"
+            size="small"
+            @added="handleAddedToPlaylist"
+            @click.stop
+          />
         </div>
       </div>
 
@@ -73,23 +64,14 @@
           :key="tag"
           size="small"
           variant="light"
+          @click.stop
         >
           {{ tag }}
-        </t-tag>
-      </div>
-
-      <div class="program-actions">
-        <AddToPlaylistButton
-          :program-id="program.id"
-          :show-text="false"
-          size="small"
-          @added="handleAddedToPlaylist"
-        />
+        </t-tag> <!-- 确保标签正确闭合 -->
       </div>
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
@@ -123,14 +105,6 @@ const truncatedDescription = computed(() => {
     : props.program.description;
 });
 
-const formattedDuration = computed(() =>
-  utils.formatDuration(props.program.durationSeconds)
-);
-
-const formattedPlayCount = computed(() =>
-  utils.formatPlayCount(props.program.playsCount)
-);
-
 const programTags = computed(() =>
   props.program.tags
     ? props.program.tags.split(",").map((tag) => tag.trim())
@@ -158,8 +132,6 @@ const handleImageError = (event: Event) => {
 };
 
 const handleLikeChanged = (isLiked: boolean, newCount: number) => {
-  // 更新本地的点赞数（如果需要的话）
-  // 这里可以发出事件给父组件，或者更新全局状态
   console.log(`节目 ${props.program.id} 喜欢状态变化:`, isLiked, newCount);
 };
 
@@ -169,6 +141,7 @@ const handleAddedToPlaylist = (playlist: any) => {
 </script>
 
 <style scoped>
+/* 样式保持不变 */
 .program-card {
   background: white;
   border-radius: 12px;
@@ -251,45 +224,28 @@ const handleAddedToPlaylist = (playlist: any) => {
   flex: 1;
 }
 
-.program-meta {
+.program-actions {
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  margin-top: auto;
+  margin-bottom: 8px;
 }
 
-.meta-item {
+.left-action, .right-action {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.program-stats {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #6b7280;
 }
 
 .program-tags {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-top: 8px;
 }
 
-.program-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: auto;
+/* 隐藏不需要的元素 */
+.program-meta, .program-stats {
+  display: none;
 }
 
 /* 响应式设计 */

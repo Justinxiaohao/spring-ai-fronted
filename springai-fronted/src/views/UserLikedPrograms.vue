@@ -37,10 +37,10 @@
             <div class="stat-number">{{ pagination.total }}</div>
             <div class="stat-label">喜欢的节目</div>
           </div>
-          <div class="stat-item">
+          <!-- <div class="stat-item">
             <div class="stat-number">{{ totalDuration }}</div>
             <div class="stat-label">总时长</div>
-          </div>
+          </div> -->
         </div>
       </div>
     </section>

@@ -14,51 +14,30 @@
         :class="{ 'animate__animated animate__heartBeat': justLiked }"
       />
     </template>
-    <span v-if="showCount">{{ formattedCount }}</span>
-    <span v-else-if="showText">{{ isLiked ? '已喜欢' : '喜欢' }}</span>
   </t-button>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { programApi, utils } from '@/services/api'
+import { programApi } from '@/services/api'
 
 interface Props {
   programId: number
-  initialLikeCount?: number
-  showCount?: boolean
-  showText?: boolean
   size?: 'small' | 'medium' | 'large'
 }
 
-interface Emits {
-  (e: 'like-changed', isLiked: boolean, newCount: number): void
-}
-
 const props = withDefaults(defineProps<Props>(), {
-  initialLikeCount: 0,
-  showCount: true,
-  showText: false,
   size: 'medium'
 })
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<{
+  (e: 'like-changed', isLiked: boolean): void
+}>()
 
 const isLiked = ref(false)
-const likeCount = ref(props.initialLikeCount)
 const loading = ref(false)
 const justLiked = ref(false)
-
-// 计算属性
-const formattedCount = computed(() => {
-  return utils.formatPlayCount(likeCount.value)
-})
-
-// 监听初始点赞数变化
-watch(() => props.initialLikeCount, (newCount) => {
-  likeCount.value = newCount
-})
 
 // 初始化
 onMounted(async () => {
@@ -81,7 +60,6 @@ const checkLikeStatus = async () => {
 const handleToggleLike = async () => {
   if (loading.value) return
 
-  // 检查是否登录
   const userEmail = localStorage.getItem('userEmail')
   if (!userEmail) {
     MessagePlugin.warning('请先登录')
@@ -90,7 +68,6 @@ const handleToggleLike = async () => {
 
   loading.value = true
   const originalLiked = isLiked.value
-  const originalCount = likeCount.value
 
   try {
     if (isLiked.value) {
@@ -98,7 +75,6 @@ const handleToggleLike = async () => {
       const response = await programApi.unlikeProgram(props.programId)
       if (response.success) {
         isLiked.value = false
-        likeCount.value = Math.max(0, likeCount.value - 1)
         MessagePlugin.success('已取消喜欢')
       } else {
         throw new Error(response.message || '取消喜欢失败')
@@ -108,11 +84,9 @@ const handleToggleLike = async () => {
       const response = await programApi.likeProgram(props.programId)
       if (response.success) {
         isLiked.value = true
-        likeCount.value += 1
         justLiked.value = true
         MessagePlugin.success('喜欢成功')
         
-        // 播放动画后重置
         setTimeout(() => {
           justLiked.value = false
         }, 1000)
@@ -121,13 +95,9 @@ const handleToggleLike = async () => {
       }
     }
 
-    // 发出事件
-    emit('like-changed', isLiked.value, likeCount.value)
+    emit('like-changed', isLiked.value) // 移除计数参数
   } catch (error: any) {
-    // 恢复原状态
     isLiked.value = originalLiked
-    likeCount.value = originalCount
-    
     console.error('操作失败:', error)
     MessagePlugin.error(error.message || '操作失败，请重试')
   } finally {
@@ -139,22 +109,34 @@ const handleToggleLike = async () => {
 <style scoped>
 .like-button {
   transition: all 0.3s ease;
+  border: 1px solid #0052d9; /* 边框颜色 */
+  border-radius: 4px;
+  padding: 6px 8px;
+  background-color: #ffffff;
+  color: #0052d9; /* 文字/图标颜色 */
 }
 
 .like-button.liked {
-  color: #e53e3e;
-  border-color: #e53e3e;
+  border-color: #0052d9;
+  background-color: #ffffff;
+  color: #f00000; /* 喜欢状态文字/图标颜色 */
 }
 
 .like-button:hover {
   transform: translateY(-1px);
+  border-color: #003da5; /* 悬停时边框颜色加深 */
+  background-color: #f0f7ff; /* 悬停时背景色 */
 }
 
 .like-button.liked:hover {
-  background-color: #fed7d7;
+  border-color: #003da5;
+  background-color: #003da5; /* 喜欢状态悬停背景色 */
 }
 
-/* 心跳动画 */
+.like-button.liked .t-icon {
+  color: #f00000; /* 喜欢状态图标颜色 */
+}
+
 .animate__heartBeat {
   animation-duration: 1s;
 }
@@ -175,9 +157,5 @@ const handleToggleLike = async () => {
   70% {
     transform: scale(1);
   }
-}
-
-.animate__heartBeat {
-  animation-name: heartBeat;
 }
 </style>
